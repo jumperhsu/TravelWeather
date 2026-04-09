@@ -247,6 +247,27 @@
     const db = getDatabase(app);
     const PROJECTS_PATH = "projects";
 
+    // ---------- 內建精確座標庫 (優先使用，避免API失敗) ----------
+    const locationCoordinates = {
+        // 上海七寶古鎮
+        "七寶古鎮": { lat: 31.1570, lon: 121.3487 },
+        "上海七寶古鎮": { lat: 31.1570, lon: 121.3487 },
+        "七宝古镇": { lat: 31.1570, lon: 121.3487 },
+        // 瀋陽中街
+        "瀋陽中街": { lat: 41.8052, lon: 123.4631 },
+        "沈阳中街": { lat: 41.8052, lon: 123.4631 },
+        "中街": { lat: 41.8052, lon: 123.4631 },
+        // 哈爾濱中央大街
+        "哈爾濱中央大街": { lat: 45.7756, lon: 126.6237 },
+        "哈尔滨中央大街": { lat: 45.7756, lon: 126.6237 },
+        "中央大街": { lat: 45.7756, lon: 126.6237 },
+        // 寧波南塘老街
+        "寧波南塘老街": { lat: 29.8648, lon: 121.5439 },
+        "宁波南塘老街": { lat: 29.8648, lon: 121.5439 },
+        "南塘老街": { lat: 29.8648, lon: 121.5439 },
+        "寧波南塘古鎮": { lat: 29.8648, lon: 121.5439 }  // 相容舊稱
+    };
+
     const urlParams = new URLSearchParams(window.location.search);
     const guid = urlParams.get('guid');
 
@@ -294,19 +315,44 @@
         }
     }
 
+    // 增強版座標獲取：先查內建庫，再嘗試 API
     async function getCoordinates(locationName) {
+        // 1. 先檢查內建精確座標 (支援部分匹配)
+        for (const [key, coords] of Object.entries(locationCoordinates)) {
+            if (locationName.includes(key) || key.includes(locationName)) {
+                console.log(`✅ 使用內建座標: ${key}`);
+                return coords;
+            }
+        }
+        
+        // 2. 嘗試 Open-Meteo Geocoding API
         const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(locationName)}&count=1&language=zh&format=json`;
         try {
             const resp = await fetch(geoUrl);
             const data = await resp.json();
             if (data.results && data.results.length > 0) {
+                console.log(`🌐 API 座標成功: ${locationName}`);
                 return { lat: data.results[0].latitude, lon: data.results[0].longitude };
             }
-            throw new Error("找不到該地點座標");
         } catch (e) {
-            console.warn(`座標獲取失敗 ${locationName}:`, e);
-            return null;
+            console.warn(`API 請求失敗: ${e}`);
         }
+        
+        // 3. 嘗試使用 Nominatim (OpenStreetMap) 備援
+        try {
+            const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locationName)}&format=json&limit=1`;
+            const resp = await fetch(nominatimUrl, { headers: { 'User-Agent': 'TravelWeatherApp/1.0' } });
+            const data = await resp.json();
+            if (data && data.length > 0) {
+                console.log(`🗺️ Nominatim 座標成功: ${locationName}`);
+                return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
+            }
+        } catch (e) {
+            console.warn(`Nominatim 失敗: ${e}`);
+        }
+        
+        console.warn(`❌ 所有座標來源均失敗: ${locationName}`);
+        return null;
     }
 
     function getWeatherDescription(code) {
@@ -365,6 +411,7 @@
         const climateRef = getClimateReference(location);
         
         if (!coords) {
+            console.log(`⚠️ 無法取得座標，使用氣候模擬: ${location}`);
             return {
                 error: true,
                 message: "地點無法識別，顯示氣候參考",
@@ -448,13 +495,16 @@
     function getClimateReference(location) {
         const mock = {
             "上海": { max: 26, min: 18, cond: "溫暖濕潤" },
+            "七寶": { max: 26, min: 18, cond: "溫暖濕潤" },
             "瀋陽": { max: 24, min: 12, cond: "晴朗" },
             "哈爾濱": { max: 22, min: 10, cond: "多雲" },
             "寧波": { max: 27, min: 19, cond: "陣雨可能" }
         };
-        let key = location;
-        for (let k in mock) if (location.includes(k)) key = k;
-        return mock[key] || { max: 24, min: 14, cond: "氣候宜人" };
+        // 模糊匹配
+        for (let k in mock) {
+            if (location.includes(k)) return mock[k];
+        }
+        return { max: 24, min: 14, cond: "氣候宜人" };
     }
 
     function renderWeatherCards(trips, results) {
