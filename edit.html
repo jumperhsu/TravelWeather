@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>旅游天气 - 行程设定模式</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(145deg, #e0eafc 0%, #cfdef3 100%);
+            font-family: system-ui, 'Segoe UI', 'PingFang SC', sans-serif;
+            padding: 24px 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #1e3c72, #2b4c7c);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        .sub {
+            color: #2c3e66;
+            margin-bottom: 2rem;
+            border-left: 4px solid #3a7ca5;
+            padding-left: 1rem;
+        }
+        .two-columns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2rem;
+        }
+        .projects-panel {
+            flex: 1.2;
+            min-width: 280px;
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(4px);
+            border-radius: 36px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        }
+        .trips-panel {
+            flex: 2.2;
+            min-width: 380px;
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(4px);
+            border-radius: 36px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+        }
+        .panel-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 1.2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .btn {
+            background: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .btn-primary {
+            background: #2a5591;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #1e3c72;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid #2a5591;
+            color: #2a5591;
+        }
+        .btn-danger {
+            background: #fff0f0;
+            color: #b13e3e;
+            border: 1px solid #ffc5c5;
+        }
+        .project-item {
+            background: white;
+            border-radius: 28px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            transition: 0.1s;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .project-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            cursor: pointer;
+            flex: 2;
+        }
+        .project-actions {
+            display: flex;
+            gap: 6px;
+        }
+        .trip-card {
+            background: white;
+            border-radius: 24px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .trip-info {
+            flex: 3;
+        }
+        .trip-dates {
+            font-weight: 500;
+            color: #1f3b64;
+        }
+        .trip-location {
+            color: #4a627a;
+            font-size: 0.9rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #5b7aa2;
+        }
+        input, select {
+            padding: 8px 12px;
+            border-radius: 60px;
+            border: 1px solid #ccc;
+            font-family: inherit;
+        }
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: flex-end;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        .modal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-card {
+            background: white;
+            border-radius: 48px;
+            padding: 1.8rem;
+            width: 90%;
+            max-width: 450px;
+        }
+        .hidden { display: none; }
+        hr { margin: 1rem 0; }
+        button:active { transform: scale(0.97);}
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🗺️ 旅游天气预报 · 行程设定</h1>
+    <div class="sub">建立专案 → 添加行程地点与日期 → 一键检视天气</div>
+
+    <div class="two-columns">
+        <!-- 左侧：专案列表 -->
+        <div class="projects-panel">
+            <div class="panel-title">
+                <span>📁 我的旅游专案</span>
+                <button class="btn btn-primary" id="newProjectBtn">+ 新增专案</button>
+            </div>
+            <div id="projectsList">加载中...</div>
+        </div>
+
+        <!-- 右侧：当前专案的行程条目 -->
+        <div class="trips-panel">
+            <div class="panel-title">
+                <span>✈️ 行程条目 <span id="currentProjectNameSpan"></span></span>
+                <div>
+                    <button class="btn btn-outline" id="viewProjectBtn" style="margin-right: 8px;">🔍 检视专案</button>
+                    <button class="btn btn-primary" id="addTripBtn">+ 新增行程</button>
+                </div>
+            </div>
+            <div id="tripsContainer">请从左侧选择一个专案</div>
+        </div>
+    </div>
+</div>
+
+<!-- 新增/编辑专案弹窗 -->
+<div id="projectModal" class="modal hidden">
+    <div class="modal-card">
+        <h3 id="modalProjectTitle">新增专案</h3>
+        <input type="text" id="projectNameInput" placeholder="专案名称 (例：东北春季之旅)" style="width:100%; margin: 16px 0;">
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+            <button class="btn btn-outline" id="cancelProjectModal">取消</button>
+            <button class="btn btn-primary" id="saveProjectBtn">储存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 新增/编辑行程弹窗 -->
+<div id="tripModal" class="modal hidden">
+    <div class="modal-card">
+        <h3 id="modalTripTitle">新增行程</h3>
+        <div style="margin: 12px 0;">
+            <label>地点名称：</label>
+            <input type="text" id="tripLocation" placeholder="例：上海七宝古镇" style="width:100%;">
+        </div>
+        <div style="margin: 12px 0;">
+            <label>起始日期：</label>
+            <input type="date" id="tripStartDate">
+        </div>
+        <div style="margin: 12px 0;">
+            <label>结束日期：</label>
+            <input type="date" id="tripEndDate">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+            <button class="btn btn-outline" id="cancelTripModal">取消</button>
+            <button class="btn btn-primary" id="saveTripBtn">储存</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    // 使用 Realtime Database 版本
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, set, update, remove, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDYMkPqucjxWd77bnJThzp1zp3m6fG-WMk",
+        authDomain: "travelweather-9a073.firebaseapp.com",
+        projectId: "travelweather-9a073",
+        storageBucket: "travelweather-9a073.firebasestorage.app",
+        messagingSenderId: "748531299215",
+        appId: "1:748531299215:web:371a664b6d1f9ecc9a11fa",
+        databaseURL: "https://travelweather-9a073-default-rtdb.firebaseio.com/"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const PROJECTS_PATH = "projects";
+
+    let currentProject = null;
+    let editingProjectId = null;
+    let editingTripId = null;
+
+    function generateId() {
+        return crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random();
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    // 加载所有专案
+    async function loadProjects() {
+        const dbRef = ref(db, PROJECTS_PATH);
+        const snapshot = await get(dbRef);
+        let projects = [];
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            projects = Object.keys(data).map(id => ({ id, ...data[id] }));
+        }
+        projects.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+        renderProjectsList(projects);
+        return projects;
+    }
+
+    function renderProjectsList(projects) {
+        const container = document.getElementById('projectsList');
+        if (!container) return;
+        if (projects.length === 0) {
+            container.innerHTML = '<div class="empty-state">✨ 暂无专案，点击「新增专案」开始规划</div>';
+            return;
+        }
+        container.innerHTML = projects.map(proj => `
+            <div class="project-item" data-id="${proj.id}">
+                <div class="project-name" data-id="${proj.id}">📌 ${escapeHtml(proj.name)}</div>
+                <div class="project-actions">
+                    <button class="btn btn-outline edit-project" data-id="${proj.id}" data-name="${escapeHtml(proj.name)}">✏️</button>
+                    <button class="btn btn-danger delete-project" data-id="${proj.id}">🗑️</button>
+                    <button class="btn btn-primary view-project" data-id="${proj.id}">👁️ 检视</button>
+                </div>
+            </div>
+        `).join('');
+        bindProjectEvents();
+    }
+
+    function bindProjectEvents() {
+        document.querySelectorAll('.project-name').forEach(el => {
+            el.addEventListener('click', () => selectProject(el.dataset.id));
+        });
+        document.querySelectorAll('.edit-project').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openProjectModal(el.dataset.id, el.dataset.name);
+            });
+        });
+        document.querySelectorAll('.delete-project').forEach(el => {
+            el.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (!confirm('确定删除此专案？所有行程将遗失')) return;
+                const projId = el.dataset.id;
+                try {
+                    await remove(ref(db, `${PROJECTS_PATH}/${projId}`));
+                    if (currentProject && currentProject.id === projId) {
+                        currentProject = null;
+                        document.getElementById('tripsContainer').innerHTML = '<div class="empty-state">请从左侧选择一个专案</div>';
+                        document.getElementById('currentProjectNameSpan').innerText = '';
+                    }
+                    await loadProjects();
+                } catch (error) {
+                    alert('删除失败：' + error.message);
+                }
+            });
+        });
+        document.querySelectorAll('.view-project').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.location.href = `view.html?guid=${el.dataset.id}`;
+            });
+        });
+    }
+
+    // 选中专案
+    async function selectProject(projectId) {
+        const snapshot = await get(ref(db, `${PROJECTS_PATH}/${projectId}`));
+        if (!snapshot.exists()) return;
+        const data = snapshot.val();
+        currentProject = { id: projectId, name: data.name, trips: data.trips || [] };
+        document.getElementById('currentProjectNameSpan').innerHTML = `：${escapeHtml(currentProject.name)}`;
+        renderTripsList(currentProject.trips);
+    }
+
+    function renderTripsList(trips) {
+        const container = document.getElementById('tripsContainer');
+        if (!container) return;
+        if (!trips || trips.length === 0) {
+            container.innerHTML = '<div class="empty-state">✈️ 尚未添加行程，点「新增行程」开始规划</div>';
+            return;
+        }
+        const sorted = [...trips].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+        container.innerHTML = sorted.map(trip => `
+            <div class="trip-card" data-trip-id="${trip.id}">
+                <div class="trip-info">
+                    <div class="trip-dates">📅 ${trip.startDate} 至 ${trip.endDate}</div>
+                    <div class="trip-location">📍 ${escapeHtml(trip.location)}</div>
+                </div>
+                <div class="project-actions">
+                    <button class="btn btn-outline edit-trip" data-id="${trip.id}" data-location="${escapeHtml(trip.location)}" data-start="${trip.startDate}" data-end="${trip.endDate}">✏️</button>
+                    <button class="btn btn-danger delete-trip" data-id="${trip.id}">🗑️</button>
+                </div>
+            </div>
+        `).join('');
+        bindTripEvents();
+    }
+
+    function bindTripEvents() {
+        document.querySelectorAll('.edit-trip').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openTripModal(btn.dataset.id, btn.dataset.location, btn.dataset.start, btn.dataset.end);
+            });
+        });
+        document.querySelectorAll('.delete-trip').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (!currentProject) return;
+                const tripId = btn.dataset.id;
+                const newTrips = currentProject.trips.filter(t => t.id !== tripId);
+                await updateTripsToProject(newTrips);
+            });
+        });
+    }
+
+    async function updateTripsToProject(newTrips) {
+        if (!currentProject) return;
+        const sortedTrips = [...newTrips].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+        try {
+            await update(ref(db, `${PROJECTS_PATH}/${currentProject.id}`), { trips: sortedTrips });
+            currentProject.trips = sortedTrips;
+            renderTripsList(sortedTrips);
+        } catch (error) {
+            alert('更新行程失败：' + error.message);
+        }
+    }
+
+    function openProjectModal(id = null, name = '') {
+        editingProjectId = id;
+        document.getElementById('projectNameInput').value = name;
+        document.getElementById('modalProjectTitle').innerText = id ? '编辑专案' : '新增专案';
+        document.getElementById('projectModal').classList.remove('hidden');
+    }
+
+    function openTripModal(id = null, location = '', startDate = '', endDate = '') {
+        editingTripId = id;
+        document.getElementById('tripLocation').value = location;
+        document.getElementById('tripStartDate').value = startDate;
+        document.getElementById('tripEndDate').value = endDate;
+        document.getElementById('modalTripTitle').innerText = id ? '编辑行程' : '新增行程';
+        document.getElementById('tripModal').classList.remove('hidden');
+    }
+
+    async function handleSaveProject() {
+        const name = document.getElementById('projectNameInput').value.trim();
+        if (!name) return alert('请输入专案名称');
+        try {
+            if (editingProjectId) {
+                await update(ref(db, `${PROJECTS_PATH}/${editingProjectId}`), { name });
+            } else {
+                const newId = generateId();
+                await set(ref(db, `${PROJECTS_PATH}/${newId}`), {
+                    name: name,
+                    trips: [],
+                    createdAt: Date.now()
+                });
+            }
+            document.getElementById('projectModal').classList.add('hidden');
+            await loadProjects();
+            if (currentProject && editingProjectId === currentProject.id) {
+                selectProject(editingProjectId);
+            }
+        } catch (error) {
+            alert(`专案保存失败：${error.message}`);
+            console.error(error);
+        }
+    }
+
+    async function handleSaveTrip() {
+        if (!currentProject) return alert('请先选择一个专案');
+        const location = document.getElementById('tripLocation').value.trim();
+        const startDate = document.getElementById('tripStartDate').value;
+        const endDate = document.getElementById('tripEndDate').value;
+        if (!location || !startDate || !endDate) return alert('请完整填写地点和日期');
+        if (new Date(startDate) > new Date(endDate)) return alert('结束日期不能早于起始日期');
+
+        let newTrips = [...currentProject.trips];
+        if (editingTripId) {
+            const index = newTrips.findIndex(t => t.id === editingTripId);
+            if (index !== -1) newTrips[index] = { ...newTrips[index], location, startDate, endDate };
+        } else {
+            newTrips.push({ id: generateId(), location, startDate, endDate });
+        }
+        try {
+            await updateTripsToProject(newTrips);
+            document.getElementById('tripModal').classList.add('hidden');
+            editingTripId = null;
+        } catch (error) {
+            alert(`行程保存失败：${error.message}`);
+        }
+    }
+
+    // 事件绑定
+    document.getElementById('newProjectBtn').addEventListener('click', () => openProjectModal());
+    document.getElementById('addTripBtn').addEventListener('click', () => {
+        if (!currentProject) return alert('请先选择一个专案');
+        openTripModal();
+    });
+    document.getElementById('viewProjectBtn').addEventListener('click', () => {
+        if (currentProject) window.location.href = `view.html?guid=${currentProject.id}`;
+        else alert('请先选择一个专案');
+    });
+    document.getElementById('saveProjectBtn').addEventListener('click', handleSaveProject);
+    document.getElementById('cancelProjectModal').addEventListener('click', () => document.getElementById('projectModal').classList.add('hidden'));
+    document.getElementById('saveTripBtn').addEventListener('click', handleSaveTrip);
+    document.getElementById('cancelTripModal').addEventListener('click', () => document.getElementById('tripModal').classList.add('hidden'));
+
+    // 初始化
+    loadProjects();
+</script>
+</body>
+</html>

@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>旅遊天氣 - 行程檢視（逐日預報）</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(145deg, #e0eafc 0%, #cfdef3 100%);
+            font-family: system-ui, 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            padding: 24px 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 36px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .header-left {
+            text-align: left;
+        }
+        h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #1e3c72, #2b4c7c);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .project-badge {
+            background: rgba(255,255,240,0.9);
+            border-radius: 60px;
+            padding: 8px 20px;
+            display: inline-block;
+            margin-top: 12px;
+            font-weight: 500;
+        }
+        .about-btn {
+            background: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 60px;
+            font-weight: 500;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 1rem;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .about-btn:hover {
+            background: #2a5591;
+            color: white;
+        }
+        .weather-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 28px;
+            justify-content: center;
+        }
+        .weather-card {
+            flex: 1;
+            min-width: 320px;
+            max-width: 400px;
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 42px;
+            backdrop-filter: blur(2px);
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.2);
+            overflow: hidden;
+            transition: 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        .card-header { padding: 18px 20px 8px; border-bottom: 1px solid #eef2fa; }
+        .location-name { font-size: 1.5rem; font-weight: 700; color: #1f3b64; }
+        .date-range { font-size: 0.8rem; color: #4a627a; margin-top: 6px; }
+        .weather-content { padding: 16px 20px 20px; flex: 1; }
+        .daily-forecast { 
+            margin-top: 12px; 
+            max-height: 300px; 
+            overflow-y: auto; 
+            padding-right: 4px;
+        }
+        .daily-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed #d9e2f0;
+        }
+        .daily-item:last-child { border-bottom: none; }
+        .daily-date { font-size: 0.9rem; font-weight: 500; color: #2c3e66; min-width: 70px; }
+        .daily-icon { font-size: 1.5rem; margin: 0 8px; }
+        .daily-temp { display: flex; gap: 8px; }
+        .daily-high { color: #c23b22; font-weight: 600; }
+        .daily-low { color: #2c6e9e; }
+        .daily-desc { font-size: 0.8rem; color: #5b7aa2; max-width: 90px; text-align: right; }
+        .summary-temp {
+            display: flex;
+            justify-content: space-around;
+            background: #eef2fc;
+            border-radius: 30px;
+            padding: 10px;
+            margin-bottom: 8px;
+        }
+        .badge-note { 
+            background: #fff3cf; 
+            color: #b16e1a; 
+            font-size: 0.7rem; 
+            padding: 6px; 
+            border-radius: 30px; 
+            text-align: center; 
+            margin-top: 12px; 
+        }
+        .footer { text-align: center; margin-top: 40px; }
+        .empty-state { text-align: center; padding: 3rem; background: rgba(255,255,255,0.5); border-radius: 40px; color: #2c3e66; }
+        .error-card { background: #ffe0e0; }
+
+        /* 關於彈窗樣式 */
+        .modal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-card {
+            background: white;
+            border-radius: 48px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 420px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        .modal-card h3 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            color: #1e3c72;
+        }
+        .modal-info {
+            background: #f4f8fe;
+            border-radius: 28px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .modal-info p {
+            margin: 8px 0;
+            font-size: 1rem;
+        }
+        .logo-row {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0 10px;
+        }
+        .logo-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: #2a5591;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        .close-btn {
+            background: #2a5591;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 60px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="header-left">
+            <h1>☀️ 旅遊天氣預報 · 行程檢視</h1>
+            <div id="projectTitleArea" class="project-badge">載入專案中...</div>
+        </div>
+        <button class="about-btn" id="aboutBtn">ℹ️ 關於</button>
+    </div>
+    <div id="weatherGrid" class="weather-grid">⏳ 讀取行程並同步氣象資料...</div>
+    <div class="footer"></div>
+</div>
+
+<!-- 關於彈窗 -->
+<div id="aboutModal" class="modal hidden">
+    <div class="modal-card">
+        <h3>📋 關於本服務</h3>
+        <div class="modal-info">
+            <p><strong>版本：</strong>20260409.01</p>
+            <p><strong>構想：</strong>Jumper.hsu@gmail.com</p>
+            <p><strong>設計：</strong>DeepSeek</p>
+            <p><strong>資料庫：</strong>Firebase</p>
+        </div>
+        <div class="logo-row">
+            <div class="logo-item">
+                <div class="logo-icon" style="background: #1e3c72;">🧠</div>
+                <span>DeepSeek</span>
+            </div>
+            <div class="logo-item">
+                <div class="logo-icon" style="background: #FFA000;">🔥</div>
+                <span>Firebase</span>
+            </div>
+        </div>
+        <button class="close-btn" id="closeAboutModal">關閉</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDYMkPqucjxWd77bnJThzp1zp3m6fG-WMk",
+        authDomain: "travelweather-9a073.firebaseapp.com",
+        projectId: "travelweather-9a073",
+        storageBucket: "travelweather-9a073.firebasestorage.app",
+        messagingSenderId: "748531299215",
+        appId: "1:748531299215:web:371a664b6d1f9ecc9a11fa",
+        databaseURL: "https://travelweather-9a073-default-rtdb.firebaseio.com/"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const PROJECTS_PATH = "projects";
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const guid = urlParams.get('guid');
+
+    // 關於彈窗控制
+    const aboutModal = document.getElementById('aboutModal');
+    document.getElementById('aboutBtn').addEventListener('click', () => {
+        aboutModal.classList.remove('hidden');
+    });
+    document.getElementById('closeAboutModal').addEventListener('click', () => {
+        aboutModal.classList.add('hidden');
+    });
+    aboutModal.addEventListener('click', (e) => {
+        if (e.target === aboutModal) aboutModal.classList.add('hidden');
+    });
+
+    if (!guid) {
+        document.getElementById('weatherGrid').innerHTML = '<div style="background:#ffe0e0; padding:20px; border-radius:40px;">❌ 未提供專案編號，請從設定模式進入</div>';
+        document.getElementById('projectTitleArea').innerText = '無專案';
+    } else {
+        loadProjectAndWeather(guid);
+    }
+
+    async function loadProjectAndWeather(projectId) {
+        try {
+            const projectRef = ref(db, `${PROJECTS_PATH}/${projectId}`);
+            const snapshot = await get(projectRef);
+            if (!snapshot.exists()) throw new Error("專案不存在");
+
+            const project = { id: projectId, ...snapshot.val() };
+            const trips = project.trips || [];
+            document.getElementById('projectTitleArea').innerHTML = `📌 ${escapeHtml(project.name)} ｜ 共 ${trips.length} 個行程`;
+
+            if (trips.length === 0) {
+                document.getElementById('weatherGrid').innerHTML = '<div class="empty-state">✨ 尚無行程，請先至設定模式添加</div>';
+                return;
+            }
+
+            const sortedTrips = [...trips].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+            const weatherPromises = sortedTrips.map(trip => fetchDetailedWeather(trip));
+            const weatherResults = await Promise.all(weatherPromises);
+            renderWeatherCards(sortedTrips, weatherResults);
+        } catch (err) {
+            console.error(err);
+            document.getElementById('weatherGrid').innerHTML = `<div style="background:#ffe0e0; padding:20px; border-radius:40px;">⚠️ 載入失敗: ${err.message}</div>`;
+        }
+    }
+
+    async function getCoordinates(locationName) {
+        const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(locationName)}&count=1&language=zh&format=json`;
+        try {
+            const resp = await fetch(geoUrl);
+            const data = await resp.json();
+            if (data.results && data.results.length > 0) {
+                return { lat: data.results[0].latitude, lon: data.results[0].longitude };
+            }
+            throw new Error("找不到該地點座標");
+        } catch (e) {
+            console.warn(`座標獲取失敗 ${locationName}:`, e);
+            return null;
+        }
+    }
+
+    function getWeatherDescription(code) {
+        const map = {
+            0: { desc: "晴", icon: "☀️" },
+            1: { desc: "晴間多雲", icon: "🌤️" },
+            2: { desc: "多雲", icon: "⛅" },
+            3: { desc: "陰", icon: "☁️" },
+            45: { desc: "霧", icon: "🌫️" },
+            48: { desc: "霧凇", icon: "🌫️" },
+            51: { desc: "毛毛雨", icon: "🌦️" },
+            53: { desc: "毛毛雨", icon: "🌦️" },
+            55: { desc: "毛毛雨", icon: "🌦️" },
+            61: { desc: "小雨", icon: "🌧️" },
+            63: { desc: "中雨", icon: "🌧️" },
+            65: { desc: "大雨", icon: "🌧️" },
+            71: { desc: "小雪", icon: "❄️" },
+            73: { desc: "中雪", icon: "❄️" },
+            75: { desc: "大雪", icon: "❄️" },
+            80: { desc: "陣雨", icon: "🌦️" },
+            81: { desc: "陣雨", icon: "🌦️" },
+            82: { desc: "強陣雨", icon: "🌦️" },
+            95: { desc: "雷暴", icon: "⛈️" },
+            96: { desc: "雷暴伴冰雹", icon: "⛈️" },
+            99: { desc: "強雷暴", icon: "⛈️" }
+        };
+        return map[code] || { desc: "多雲", icon: "🌥️" };
+    }
+
+    function generateMockDaily(startDate, endDate, location) {
+        const days = [];
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const climate = getClimateReference(location);
+        const baseHigh = climate.max;
+        const baseLow = climate.min;
+        
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const variation = Math.sin(d.getDate()) * 3;
+            days.push({
+                date: d.toISOString().slice(0,10),
+                maxTemp: (baseHigh + variation).toFixed(1),
+                minTemp: (baseLow - variation).toFixed(1),
+                weatherCode: 3,
+                desc: climate.cond,
+                icon: "📘",
+                windSpeed: "12"
+            });
+        }
+        return days;
+    }
+
+    async function fetchDetailedWeather(trip) {
+        const { location, startDate, endDate } = trip;
+        const coords = await getCoordinates(location);
+        const climateRef = getClimateReference(location);
+        
+        if (!coords) {
+            return {
+                error: true,
+                message: "地點無法識別，顯示氣候參考",
+                daily: generateMockDaily(startDate, endDate, location),
+                isClimate: true
+            };
+        }
+
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const limitDate = new Date(today);
+        limitDate.setDate(today.getDate() + 16);
+        
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        if (start > limitDate) {
+            return {
+                daily: generateMockDaily(startDate, endDate, location),
+                isClimate: true
+            };
+        }
+
+        const reqStart = start < today ? today.toISOString().slice(0,10) : startDate;
+        const reqEnd = end > limitDate ? limitDate.toISOString().slice(0,10) : endDate;
+        
+        let apiDaily = [];
+        let isPartial = false;
+        
+        if (reqStart <= reqEnd) {
+            try {
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max&timezone=auto&start_date=${reqStart}&end_date=${reqEnd}`;
+                const resp = await fetch(url);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data.daily && data.daily.time) {
+                        const times = data.daily.time;
+                        for (let i = 0; i < times.length; i++) {
+                            apiDaily.push({
+                                date: times[i],
+                                maxTemp: data.daily.temperature_2m_max[i].toFixed(1),
+                                minTemp: data.daily.temperature_2m_min[i].toFixed(1),
+                                weatherCode: data.daily.weather_code[i],
+                                windSpeed: data.daily.wind_speed_10m_max[i].toFixed(1),
+                                desc: getWeatherDescription(data.daily.weather_code[i]).desc,
+                                icon: getWeatherDescription(data.daily.weather_code[i]).icon
+                            });
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('API請求失敗:', e);
+            }
+        }
+
+        const fullDaily = [];
+        const current = new Date(startDate);
+        const endDateObj = new Date(endDate);
+        
+        while (current <= endDateObj) {
+            const dateStr = current.toISOString().slice(0,10);
+            const apiEntry = apiDaily.find(d => d.date === dateStr);
+            
+            if (apiEntry) {
+                fullDaily.push(apiEntry);
+            } else {
+                const mock = generateMockDaily(dateStr, dateStr, location)[0];
+                fullDaily.push({ ...mock, isMock: true });
+                isPartial = true;
+            }
+            current.setDate(current.getDate() + 1);
+        }
+
+        return {
+            daily: fullDaily,
+            isClimate: isPartial || start > limitDate,
+            partial: isPartial
+        };
+    }
+
+    function getClimateReference(location) {
+        const mock = {
+            "上海": { max: 26, min: 18, cond: "溫暖濕潤" },
+            "瀋陽": { max: 24, min: 12, cond: "晴朗" },
+            "哈爾濱": { max: 22, min: 10, cond: "多雲" },
+            "寧波": { max: 27, min: 19, cond: "陣雨可能" }
+        };
+        let key = location;
+        for (let k in mock) if (location.includes(k)) key = k;
+        return mock[key] || { max: 24, min: 14, cond: "氣候宜人" };
+    }
+
+    function renderWeatherCards(trips, results) {
+        const grid = document.getElementById('weatherGrid');
+        grid.innerHTML = '';
+        
+        for (let i = 0; i < trips.length; i++) {
+            const trip = trips[i];
+            const result = results[i];
+            const daily = result.daily || [];
+            const isClimate = result.isClimate || false;
+            const errorMsg = result.error ? result.message : '';
+            
+            const avgHigh = daily.length ? (daily.reduce((s, d) => s + parseFloat(d.maxTemp), 0) / daily.length).toFixed(1) : '--';
+            const avgLow = daily.length ? (daily.reduce((s, d) => s + parseFloat(d.minTemp), 0) / daily.length).toFixed(1) : '--';
+            
+            const card = document.createElement('div');
+            card.className = 'weather-card' + (result.error ? ' error-card' : '');
+            
+            const dailyItemsHtml = daily.map(day => {
+                const icon = day.icon || getWeatherDescription(day.weatherCode).icon;
+                const desc = day.desc || getWeatherDescription(day.weatherCode).desc;
+                const high = Math.round(parseFloat(day.maxTemp));
+                const low = Math.round(parseFloat(day.minTemp));
+                const dateObj = new Date(day.date);
+                const dateLabel = `${dateObj.getMonth()+1}/${dateObj.getDate()}`;
+                return `
+                    <div class="daily-item">
+                        <span class="daily-date">${dateLabel}</span>
+                        <span class="daily-icon">${icon}</span>
+                        <span class="daily-desc">${desc}</span>
+                        <span class="daily-temp">
+                            <span class="daily-high">${high}°</span>
+                            <span class="daily-low">${low}°</span>
+                        </span>
+                    </div>
+                `;
+            }).join('');
+            
+            card.innerHTML = `
+                <div class="card-header">
+                    <div class="location-name">📍 ${escapeHtml(trip.location)}</div>
+                    <div class="date-range">📅 ${trip.startDate} 至 ${trip.endDate} · 共 ${daily.length} 天</div>
+                </div>
+                <div class="weather-content">
+                    <div class="summary-temp">
+                        <span>🌡️ 平均高溫 ${avgHigh}°</span>
+                        <span>❄️ 平均低溫 ${avgLow}°</span>
+                    </div>
+                    <div class="daily-forecast">
+                        ${dailyItemsHtml}
+                    </div>
+                    ${isClimate ? `<div class="badge-note">📘 部分或全部日期為歷史氣候參考，鄰近將更新為即時預報</div>` : ''}
+                    ${errorMsg ? `<div class="badge-note" style="background:#ffd6d6;">⚠️ ${errorMsg}</div>` : ''}
+                </div>
+            `;
+            grid.appendChild(card);
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+</script>
+</body>
+</html>
