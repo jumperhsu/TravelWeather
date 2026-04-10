@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>旅遊天氣 · 行程設定模式</title>
+    <title>旅遊天氣 · 行程設定（含歸檔）</title>
     <style>
         * {
             margin: 0;
@@ -39,9 +39,10 @@
             flex-wrap: wrap;
             gap: 2rem;
         }
+        /* 左側加寬，右側收窄 */
         .projects-panel {
-            flex: 1.2;
-            min-width: 280px;
+            flex: 2.0;          /* 原 1.2 → 2.0 */
+            min-width: 300px;
             background: rgba(255,255,255,0.7);
             backdrop-filter: blur(4px);
             border-radius: 36px;
@@ -49,8 +50,8 @@
             box-shadow: 0 8px 20px rgba(0,0,0,0.08);
         }
         .trips-panel {
-            flex: 2.2;
-            min-width: 380px;
+            flex: 1.8;          /* 原 2.2 → 1.8 */
+            min-width: 320px;
             background: rgba(255,255,255,0.7);
             backdrop-filter: blur(4px);
             border-radius: 36px;
@@ -77,6 +78,10 @@
             transition: 0.2s;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
         }
         .btn-primary {
             background: #2a5591;
@@ -96,11 +101,20 @@
             border: 1px solid #ffc5c5;
         }
         .btn-icon {
-            padding: 4px 8px;
-            font-size: 1rem;
+            padding: 6px 10px;
+            font-size: 1.1rem;
             line-height: 1;
             background: #f8faff;
             border: 1px solid #cdd9e9;
+        }
+        .btn-archive {
+            background: #edf2f9;
+            color: #3a5e8c;
+            border: 1px solid #b8cae0;
+        }
+        .btn-sm {
+            padding: 4px 8px;
+            font-size: 0.9rem;
         }
         .project-item {
             background: white;
@@ -114,6 +128,11 @@
             gap: 8px;
             transition: 0.1s;
             border: 1px solid rgba(0,0,0,0.05);
+        }
+        .project-item.archived {
+            opacity: 0.85;
+            background: #f5f7fc;
+            border-left: 6px solid #8a9db0;
         }
         .project-name {
             font-weight: 600;
@@ -159,14 +178,6 @@
             border: 1px solid #ccc;
             font-family: inherit;
         }
-        .form-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: flex-end;
-            margin-top: 1rem;
-            margin-bottom: 1rem;
-        }
         .modal {
             position: fixed;
             top: 0; left: 0;
@@ -198,10 +209,35 @@
             gap: 6px;
             flex-wrap: wrap;
         }
-        .order-hint {
-            font-size: 0.75rem;
-            color: #6b85a8;
+        .archive-section {
+            margin-top: 24px;
+            border-top: 2px dashed #b0c7e3;
+            padding-top: 16px;
+        }
+        details {
+            cursor: pointer;
+        }
+        summary {
+            font-weight: 600;
+            color: #2a4b7a;
+            padding: 8px 0;
+            font-size: 1.1rem;
+            list-style: '📦 ' inside;
+        }
+        summary::-webkit-details-marker {
+            display: none;
+        }
+        .badge-archived {
+            font-size: 0.7rem;
+            background: #a0b9d4;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 20px;
             margin-left: 8px;
+        }
+        /* 工具提示 (title) 原生即支援，無需額外樣式 */
+        button[title] {
+            cursor: help;
         }
     </style>
 </head>
@@ -211,22 +247,30 @@
     <div class="sub">建立專案 → 添加行程地點與日期 → 一鍵檢視天氣（同日起始可自訂順序）</div>
 
     <div class="two-columns">
-        <!-- 左側：專案列表 -->
+        <!-- 左側：專案列表 (加寬) -->
         <div class="projects-panel">
             <div class="panel-title">
-                <span>📁 我的旅遊專案</span>
-                <button class="btn btn-primary" id="newProjectBtn">+ 新增專案</button>
+                <span>📁 進行中專案</span>
+                <button class="btn btn-primary" id="newProjectBtn" title="新增專案">➕ 新增專案</button>
             </div>
-            <div id="projectsList">載入中…</div>
+            <div id="activeProjectsList">載入中…</div>
+
+            <!-- 已歸檔專案折疊區 -->
+            <div class="archive-section">
+                <details id="archiveDetails">
+                    <summary><span id="archiveSummaryText">📦 已歸檔專案</span></summary>
+                    <div id="archivedProjectsList" style="margin-top: 12px;"></div>
+                </details>
+            </div>
         </div>
 
-        <!-- 右側：目前專案的行程條目 -->
+        <!-- 右側：目前專案的行程條目 (收窄) -->
         <div class="trips-panel">
             <div class="panel-title">
                 <span>✈️ 行程條目 <span id="currentProjectNameSpan"></span></span>
                 <div>
-                    <button class="btn btn-outline" id="viewProjectBtn" style="margin-right: 8px;">🔍 檢視專案</button>
-                    <button class="btn btn-primary" id="addTripBtn">+ 新增行程</button>
+                    <button class="btn btn-outline" id="viewProjectBtn" style="margin-right: 8px;" title="檢視專案天氣">🔍 檢視</button>
+                    <button class="btn btn-primary" id="addTripBtn" title="新增行程">➕ 新增行程</button>
                 </div>
             </div>
             <div id="tripsContainer">請從左側選擇一個專案</div>
@@ -305,13 +349,12 @@
         });
     }
 
-    // ----- 輔助：確保行程都有 order (用於遷移舊資料) -----
+    // 確保行程都有 order
     function ensureTripsHaveOrder(trips) {
-        if (!trips || !trips.length) return trips;
+        if (!trips || !trips.length) return { trips, needsUpdate: false };
         let needsUpdate = false;
         const tripsCopy = trips.map(t => ({ ...t }));
         
-        // 先按 startDate 分組
         const groups = {};
         tripsCopy.forEach(t => {
             const d = t.startDate;
@@ -319,32 +362,21 @@
             groups[d].push(t);
         });
         
-        // 為每個日期組內分配 order (若缺少)
         Object.keys(groups).forEach(date => {
             const group = groups[date];
-            // 檢查是否有缺少 order
             const hasMissing = group.some(t => t.order === undefined || t.order === null);
             if (hasMissing) {
                 needsUpdate = true;
-                // 先依原有順序 (原本陣列中的相對位置) 分配 order，保持穩定
-                // 但我們直接依照目前 group 的順序 (從 tripsCopy 過來的順序)
-                group.sort((a, b) => {
-                    // 如果都有 order 就用 order，否則保持原順序
-                    if (a.order !== undefined && b.order !== undefined) return a.order - b.order;
-                    return 0;
-                });
-                // 重新給連續 order
+                group.sort((a, b) => (a.order || 0) - (b.order || 0));
                 group.forEach((t, idx) => { t.order = idx; });
             }
         });
         
-        // 最後再扁平化並按 startDate, order 排序
         const allTrips = Object.values(groups).flat();
         allTrips.sort((a, b) => {
             if (a.startDate !== b.startDate) return a.startDate.localeCompare(b.startDate);
             return (a.order || 0) - (b.order || 0);
         });
-        
         return { trips: allTrips, needsUpdate };
     }
 
@@ -357,42 +389,74 @@
             const data = snapshot.val();
             projects = Object.keys(data).map(id => ({ id, ...data[id] }));
         }
+        projects = projects.map(p => ({ ...p, archived: p.archived || false }));
         projects.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-        renderProjectsList(projects);
+        
+        const active = projects.filter(p => !p.archived);
+        const archived = projects.filter(p => p.archived);
+        
+        renderActiveProjects(active);
+        renderArchivedProjects(archived);
+        
+        document.getElementById('archiveSummaryText').innerHTML = `📦 已歸檔專案 (${archived.length})`;
+        
         return projects;
     }
 
-    function renderProjectsList(projects) {
-        const container = document.getElementById('projectsList');
+    function renderActiveProjects(projects) {
+        const container = document.getElementById('activeProjectsList');
         if (!container) return;
         if (projects.length === 0) {
-            container.innerHTML = '<div class="empty-state">✨ 尚無專案，點擊「新增專案」開始規劃</div>';
+            container.innerHTML = '<div class="empty-state">✨ 尚無進行中專案，點擊「新增專案」開始規劃</div>';
             return;
         }
-        container.innerHTML = projects.map(proj => `
-            <div class="project-item" data-id="${proj.id}">
-                <div class="project-name" data-id="${proj.id}">📌 ${escapeHtml(proj.name)}</div>
-                <div class="project-actions">
-                    <button class="btn btn-outline edit-project" data-id="${proj.id}" data-name="${escapeHtml(proj.name)}">✏️</button>
-                    <button class="btn btn-danger delete-project" data-id="${proj.id}">🗑️</button>
-                    <button class="btn btn-primary view-project" data-id="${proj.id}">👁️ 檢視</button>
-                </div>
-            </div>
-        `).join('');
-        bindProjectEvents();
+        container.innerHTML = projects.map(proj => createProjectCardHtml(proj, false)).join('');
+        bindProjectEvents(container);
     }
 
-    function bindProjectEvents() {
-        document.querySelectorAll('.project-name').forEach(el => {
+    function renderArchivedProjects(projects) {
+        const container = document.getElementById('archivedProjectsList');
+        if (!container) return;
+        if (projects.length === 0) {
+            container.innerHTML = '<div class="empty-state" style="padding:1rem;">📭 尚無已歸檔專案</div>';
+            return;
+        }
+        container.innerHTML = projects.map(proj => createProjectCardHtml(proj, true)).join('');
+        bindProjectEvents(container);
+    }
+
+    function createProjectCardHtml(proj, isArchived) {
+        const archivedClass = isArchived ? 'archived' : '';
+        // 歸檔按鈕：歸檔/取消歸檔 圖示 + title
+        const archiveIcon = isArchived ? '📂' : '📦';
+        const archiveTitle = isArchived ? '取消歸檔' : '歸檔';
+        return `
+            <div class="project-item ${archivedClass}" data-id="${proj.id}">
+                <div class="project-name" data-id="${proj.id}">
+                    ${escapeHtml(proj.name)} 
+                    ${isArchived ? '<span class="badge-archived">歸檔</span>' : ''}
+                </div>
+                <div class="project-actions">
+                    <button class="btn btn-outline edit-project" data-id="${proj.id}" data-name="${escapeHtml(proj.name)}" title="編輯專案">✏️</button>
+                    <button class="btn btn-archive toggle-archive" data-id="${proj.id}" data-archive="${!isArchived}" title="${archiveTitle}">${archiveIcon}</button>
+                    <button class="btn btn-danger delete-project" data-id="${proj.id}" title="刪除專案">🗑️</button>
+                    <button class="btn btn-primary view-project" data-id="${proj.id}" title="檢視專案天氣">👁️</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function bindProjectEvents(container) {
+        container.querySelectorAll('.project-name').forEach(el => {
             el.addEventListener('click', () => selectProject(el.dataset.id));
         });
-        document.querySelectorAll('.edit-project').forEach(el => {
+        container.querySelectorAll('.edit-project').forEach(el => {
             el.addEventListener('click', (e) => {
                 e.stopPropagation();
                 openProjectModal(el.dataset.id, el.dataset.name);
             });
         });
-        document.querySelectorAll('.delete-project').forEach(el => {
+        container.querySelectorAll('.delete-project').forEach(el => {
             el.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 if (!confirm('確定刪除此專案？所有行程將會遺失')) return;
@@ -410,27 +474,42 @@
                 }
             });
         });
-        document.querySelectorAll('.view-project').forEach(el => {
+        container.querySelectorAll('.view-project').forEach(el => {
             el.addEventListener('click', (e) => {
                 e.stopPropagation();
                 window.location.href = `view.html?guid=${el.dataset.id}`;
             });
         });
+        container.querySelectorAll('.toggle-archive').forEach(el => {
+            el.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const projId = el.dataset.id;
+                const newArchivedState = el.dataset.archive === 'true';
+                try {
+                    await update(ref(db, `${PROJECTS_PATH}/${projId}`), { archived: newArchivedState });
+                    if (currentProject && currentProject.id === projId) {
+                        currentProject.archived = newArchivedState;
+                        document.getElementById('currentProjectNameSpan').innerHTML = `：${escapeHtml(currentProject.name)} ${newArchivedState ? '<span class="badge-archived">歸檔</span>' : ''}`;
+                    }
+                    await loadProjects();
+                } catch (error) {
+                    alert('歸檔狀態更新失敗：' + error.message);
+                }
+            });
+        });
     }
 
-    // 選取專案（並自動修正 order 若有必要）
     async function selectProject(projectId) {
         const snapshot = await get(ref(db, `${PROJECTS_PATH}/${projectId}`));
         if (!snapshot.exists()) return;
         const data = snapshot.val();
         let trips = data.trips || [];
         
-        // 確保 trips 都有 order 欄位 (舊資料相容)
         const { trips: normalizedTrips, needsUpdate } = ensureTripsHaveOrder(trips);
+        const archived = data.archived || false;
         
-        currentProject = { id: projectId, name: data.name, trips: normalizedTrips };
+        currentProject = { id: projectId, name: data.name, trips: normalizedTrips, archived };
         
-        // 如果需要更新 order 至資料庫 (僅第一次修正)
         if (needsUpdate) {
             try {
                 await update(ref(db, `${PROJECTS_PATH}/${projectId}`), { trips: normalizedTrips });
@@ -439,11 +518,12 @@
             }
         }
         
-        document.getElementById('currentProjectNameSpan').innerHTML = `：${escapeHtml(currentProject.name)}`;
+        let displayName = escapeHtml(currentProject.name);
+        if (archived) displayName += ' <span class="badge-archived">歸檔</span>';
+        document.getElementById('currentProjectNameSpan').innerHTML = `：${displayName}`;
         renderTripsList(currentProject.trips);
     }
 
-    // 取得相同起始日期的下一個 order 值 (新增時使用)
     function getNextOrderForDate(trips, startDate) {
         const sameDateTrips = trips.filter(t => t.startDate === startDate);
         if (sameDateTrips.length === 0) return 0;
@@ -451,7 +531,6 @@
         return maxOrder + 1;
     }
 
-    // 渲染行程 (依 startDate → order)
     function renderTripsList(trips) {
         const container = document.getElementById('tripsContainer');
         if (!container) return;
@@ -459,14 +538,12 @@
             container.innerHTML = '<div class="empty-state">✈️ 尚未添加行程，點「新增行程」開始規劃</div>';
             return;
         }
-        // 排序：先日期，再 order
         const sorted = [...trips].sort((a, b) => {
             if (a.startDate !== b.startDate) return a.startDate.localeCompare(b.startDate);
             return (a.order || 0) - (b.order || 0);
         });
         
-        container.innerHTML = sorted.map((trip, index) => {
-            // 判斷是否為同日期組內的第一個或最後一個，以便顯示移動按鈕狀態（視覺提示，不強制禁用）
+        container.innerHTML = sorted.map((trip) => {
             const sameDateTrips = sorted.filter(t => t.startDate === trip.startDate);
             const isFirstInGroup = sameDateTrips.length > 0 && sameDateTrips[0].id === trip.id;
             const isLastInGroup = sameDateTrips.length > 0 && sameDateTrips[sameDateTrips.length-1].id === trip.id;
@@ -482,8 +559,8 @@
                         <button class="btn btn-icon move-up" data-id="${trip.id}" ${isFirstInGroup ? 'disabled style="opacity:0.5;"' : ''} title="向上移動（同日起始）">⬆️</button>
                         <button class="btn btn-icon move-down" data-id="${trip.id}" ${isLastInGroup ? 'disabled style="opacity:0.5;"' : ''} title="向下移動（同日起始）">⬇️</button>
                     </div>
-                    <button class="btn btn-outline edit-trip" data-id="${trip.id}" data-location="${escapeHtml(trip.location)}" data-start="${trip.startDate}" data-end="${trip.endDate}">✏️</button>
-                    <button class="btn btn-danger delete-trip" data-id="${trip.id}">🗑️</button>
+                    <button class="btn btn-outline edit-trip" data-id="${trip.id}" data-location="${escapeHtml(trip.location)}" data-start="${trip.startDate}" data-end="${trip.endDate}" title="編輯行程">✏️</button>
+                    <button class="btn btn-danger delete-trip" data-id="${trip.id}" title="刪除行程">🗑️</button>
                 </div>
             </div>
         `}).join('');
@@ -492,14 +569,12 @@
     }
 
     function bindTripEvents() {
-        // 編輯
         document.querySelectorAll('.edit-trip').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 openTripModal(btn.dataset.id, btn.dataset.location, btn.dataset.start, btn.dataset.end);
             });
         });
-        // 刪除
         document.querySelectorAll('.delete-trip').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -509,7 +584,6 @@
                 await updateTripsToProject(newTrips);
             });
         });
-        // 上移
         document.querySelectorAll('.move-up').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -517,7 +591,6 @@
                 await moveTrip(tripId, 'up');
             });
         });
-        // 下移
         document.querySelectorAll('.move-down').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -527,7 +600,6 @@
         });
     }
 
-    // 移動行程 (僅在同一起始日期內交換 order)
     async function moveTrip(tripId, direction) {
         if (!currentProject) return;
         const trips = [...currentProject.trips];
@@ -537,9 +609,8 @@
         const targetTrip = trips[targetIndex];
         const startDate = targetTrip.startDate;
         
-        // 找出同一天的所有行程，並按 order 排序
         const sameDateTrips = trips.filter(t => t.startDate === startDate).sort((a, b) => (a.order || 0) - (b.order || 0));
-        if (sameDateTrips.length < 2) return; // 只有一個無法移動
+        if (sameDateTrips.length < 2) return;
         
         const pos = sameDateTrips.findIndex(t => t.id === tripId);
         if (pos === -1) return;
@@ -550,26 +621,19 @@
         } else if (direction === 'down' && pos < sameDateTrips.length - 1) {
             swapWith = sameDateTrips[pos + 1];
         } else {
-            return; // 已在邊界
+            return;
         }
         
-        // 交換 order 值
         const tempOrder = targetTrip.order;
         targetTrip.order = swapWith.order;
         swapWith.order = tempOrder;
         
-        // 更新整個 trips (已經包含修改後的 order)
-        // 但需要保持所有 trip 的參考，直接使用 trips 陣列
-        // 注意 trips 中其他日期的行程不變
         await updateTripsToProject(trips);
     }
 
-    // 更新專案下的 trips (儲存至 Firebase)
     async function updateTripsToProject(newTrips) {
         if (!currentProject) return;
-        // 確保每個 trip 都有 order (以防萬一)
         const { trips: normalized } = ensureTripsHaveOrder(newTrips);
-        // 再次排序
         const sortedTrips = normalized.sort((a, b) => {
             if (a.startDate !== b.startDate) return a.startDate.localeCompare(b.startDate);
             return (a.order || 0) - (b.order || 0);
@@ -610,7 +674,8 @@
                 await set(ref(db, `${PROJECTS_PATH}/${newId}`), {
                     name: name,
                     trips: [],
-                    createdAt: Date.now()
+                    createdAt: Date.now(),
+                    archived: false
                 });
             }
             document.getElementById('projectModal').classList.add('hidden');
@@ -620,7 +685,6 @@
             }
         } catch (error) {
             alert(`專案儲存失敗：${error.message}`);
-            console.error(error);
         }
     }
 
@@ -638,17 +702,14 @@
             const index = newTrips.findIndex(t => t.id === editingTripId);
             if (index !== -1) {
                 const oldTrip = newTrips[index];
-                // 若起始日期改變，重新計算 order (放到新日期組的最後)
                 if (oldTrip.startDate !== startDate) {
                     const newOrder = getNextOrderForDate(newTrips, startDate);
                     newTrips[index] = { ...oldTrip, location, startDate, endDate, order: newOrder };
                 } else {
-                    // 日期沒變，保留原 order
                     newTrips[index] = { ...oldTrip, location, startDate, endDate };
                 }
             }
         } else {
-            // 新增：計算 order
             const newOrder = getNextOrderForDate(newTrips, startDate);
             newTrips.push({ id: generateId(), location, startDate, endDate, order: newOrder });
         }
