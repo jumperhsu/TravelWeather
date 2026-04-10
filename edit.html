@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>旅游天气 - 行程设定模式</title>
+    <title>旅遊天氣 · 行程設定模式</title>
     <style>
         * {
             margin: 0;
@@ -12,7 +12,7 @@
         }
         body {
             background: linear-gradient(145deg, #e0eafc 0%, #cfdef3 100%);
-            font-family: system-ui, 'Segoe UI', 'PingFang SC', sans-serif;
+            font-family: system-ui, 'Segoe UI', 'PingFang SC', 'Microsoft JhengHei', sans-serif;
             padding: 24px 20px;
             min-height: 100vh;
         }
@@ -76,6 +76,7 @@
             cursor: pointer;
             transition: 0.2s;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 0.9rem;
         }
         .btn-primary {
             background: #2a5591;
@@ -93,6 +94,13 @@
             background: #fff0f0;
             color: #b13e3e;
             border: 1px solid #ffc5c5;
+        }
+        .btn-icon {
+            padding: 4px 8px;
+            font-size: 1rem;
+            line-height: 1;
+            background: #f8faff;
+            border: 1px solid #cdd9e9;
         }
         .project-item {
             background: white;
@@ -116,6 +124,7 @@
         .project-actions {
             display: flex;
             gap: 6px;
+            flex-wrap: wrap;
         }
         .trip-card {
             background: white;
@@ -177,75 +186,90 @@
         }
         .hidden { display: none; }
         hr { margin: 1rem 0; }
-        button:active { transform: scale(0.97);}
+        button:active { transform: scale(0.97); }
+        .move-group {
+            display: inline-flex;
+            gap: 4px;
+            margin-left: 4px;
+        }
+        .trip-actions-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .order-hint {
+            font-size: 0.75rem;
+            color: #6b85a8;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>🗺️ 旅游天气预报 · 行程设定</h1>
-    <div class="sub">建立专案 → 添加行程地点与日期 → 一键检视天气</div>
+    <h1>🗺️ 旅遊天氣預報 · 行程設定</h1>
+    <div class="sub">建立專案 → 添加行程地點與日期 → 一鍵檢視天氣（同日起始可自訂順序）</div>
 
     <div class="two-columns">
-        <!-- 左侧：专案列表 -->
+        <!-- 左側：專案列表 -->
         <div class="projects-panel">
             <div class="panel-title">
-                <span>📁 我的旅游专案</span>
-                <button class="btn btn-primary" id="newProjectBtn">+ 新增专案</button>
+                <span>📁 我的旅遊專案</span>
+                <button class="btn btn-primary" id="newProjectBtn">+ 新增專案</button>
             </div>
-            <div id="projectsList">加载中...</div>
+            <div id="projectsList">載入中…</div>
         </div>
 
-        <!-- 右侧：当前专案的行程条目 -->
+        <!-- 右側：目前專案的行程條目 -->
         <div class="trips-panel">
             <div class="panel-title">
-                <span>✈️ 行程条目 <span id="currentProjectNameSpan"></span></span>
+                <span>✈️ 行程條目 <span id="currentProjectNameSpan"></span></span>
                 <div>
-                    <button class="btn btn-outline" id="viewProjectBtn" style="margin-right: 8px;">🔍 检视专案</button>
+                    <button class="btn btn-outline" id="viewProjectBtn" style="margin-right: 8px;">🔍 檢視專案</button>
                     <button class="btn btn-primary" id="addTripBtn">+ 新增行程</button>
                 </div>
             </div>
-            <div id="tripsContainer">请从左侧选择一个专案</div>
+            <div id="tripsContainer">請從左側選擇一個專案</div>
         </div>
     </div>
 </div>
 
-<!-- 新增/编辑专案弹窗 -->
+<!-- 新增/編輯專案彈窗 -->
 <div id="projectModal" class="modal hidden">
     <div class="modal-card">
-        <h3 id="modalProjectTitle">新增专案</h3>
-        <input type="text" id="projectNameInput" placeholder="专案名称 (例：东北春季之旅)" style="width:100%; margin: 16px 0;">
+        <h3 id="modalProjectTitle">新增專案</h3>
+        <input type="text" id="projectNameInput" placeholder="專案名稱（例：東北春季之旅）" style="width:100%; margin: 16px 0;">
         <div style="display: flex; justify-content: flex-end; gap: 12px;">
             <button class="btn btn-outline" id="cancelProjectModal">取消</button>
-            <button class="btn btn-primary" id="saveProjectBtn">储存</button>
+            <button class="btn btn-primary" id="saveProjectBtn">儲存</button>
         </div>
     </div>
 </div>
 
-<!-- 新增/编辑行程弹窗 -->
+<!-- 新增/編輯行程彈窗 -->
 <div id="tripModal" class="modal hidden">
     <div class="modal-card">
         <h3 id="modalTripTitle">新增行程</h3>
         <div style="margin: 12px 0;">
-            <label>地点名称：</label>
-            <input type="text" id="tripLocation" placeholder="例：上海七宝古镇" style="width:100%;">
+            <label>地點名稱：</label>
+            <input type="text" id="tripLocation" placeholder="例：上海七寶古鎮" style="width:100%;">
         </div>
         <div style="margin: 12px 0;">
             <label>起始日期：</label>
             <input type="date" id="tripStartDate">
         </div>
         <div style="margin: 12px 0;">
-            <label>结束日期：</label>
+            <label>結束日期：</label>
             <input type="date" id="tripEndDate">
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 12px;">
             <button class="btn btn-outline" id="cancelTripModal">取消</button>
-            <button class="btn btn-primary" id="saveTripBtn">储存</button>
+            <button class="btn btn-primary" id="saveTripBtn">儲存</button>
         </div>
     </div>
 </div>
 
 <script type="module">
-    // 使用 Realtime Database 版本
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, set, update, remove, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
@@ -268,7 +292,7 @@
     let editingTripId = null;
 
     function generateId() {
-        return crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random();
+        return crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36);
     }
 
     function escapeHtml(str) {
@@ -281,7 +305,50 @@
         });
     }
 
-    // 加载所有专案
+    // ----- 輔助：確保行程都有 order (用於遷移舊資料) -----
+    function ensureTripsHaveOrder(trips) {
+        if (!trips || !trips.length) return trips;
+        let needsUpdate = false;
+        const tripsCopy = trips.map(t => ({ ...t }));
+        
+        // 先按 startDate 分組
+        const groups = {};
+        tripsCopy.forEach(t => {
+            const d = t.startDate;
+            if (!groups[d]) groups[d] = [];
+            groups[d].push(t);
+        });
+        
+        // 為每個日期組內分配 order (若缺少)
+        Object.keys(groups).forEach(date => {
+            const group = groups[date];
+            // 檢查是否有缺少 order
+            const hasMissing = group.some(t => t.order === undefined || t.order === null);
+            if (hasMissing) {
+                needsUpdate = true;
+                // 先依原有順序 (原本陣列中的相對位置) 分配 order，保持穩定
+                // 但我們直接依照目前 group 的順序 (從 tripsCopy 過來的順序)
+                group.sort((a, b) => {
+                    // 如果都有 order 就用 order，否則保持原順序
+                    if (a.order !== undefined && b.order !== undefined) return a.order - b.order;
+                    return 0;
+                });
+                // 重新給連續 order
+                group.forEach((t, idx) => { t.order = idx; });
+            }
+        });
+        
+        // 最後再扁平化並按 startDate, order 排序
+        const allTrips = Object.values(groups).flat();
+        allTrips.sort((a, b) => {
+            if (a.startDate !== b.startDate) return a.startDate.localeCompare(b.startDate);
+            return (a.order || 0) - (b.order || 0);
+        });
+        
+        return { trips: allTrips, needsUpdate };
+    }
+
+    // 載入所有專案
     async function loadProjects() {
         const dbRef = ref(db, PROJECTS_PATH);
         const snapshot = await get(dbRef);
@@ -299,7 +366,7 @@
         const container = document.getElementById('projectsList');
         if (!container) return;
         if (projects.length === 0) {
-            container.innerHTML = '<div class="empty-state">✨ 暂无专案，点击「新增专案」开始规划</div>';
+            container.innerHTML = '<div class="empty-state">✨ 尚無專案，點擊「新增專案」開始規劃</div>';
             return;
         }
         container.innerHTML = projects.map(proj => `
@@ -308,7 +375,7 @@
                 <div class="project-actions">
                     <button class="btn btn-outline edit-project" data-id="${proj.id}" data-name="${escapeHtml(proj.name)}">✏️</button>
                     <button class="btn btn-danger delete-project" data-id="${proj.id}">🗑️</button>
-                    <button class="btn btn-primary view-project" data-id="${proj.id}">👁️ 检视</button>
+                    <button class="btn btn-primary view-project" data-id="${proj.id}">👁️ 檢視</button>
                 </div>
             </div>
         `).join('');
@@ -328,18 +395,18 @@
         document.querySelectorAll('.delete-project').forEach(el => {
             el.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                if (!confirm('确定删除此专案？所有行程将遗失')) return;
+                if (!confirm('確定刪除此專案？所有行程將會遺失')) return;
                 const projId = el.dataset.id;
                 try {
                     await remove(ref(db, `${PROJECTS_PATH}/${projId}`));
                     if (currentProject && currentProject.id === projId) {
                         currentProject = null;
-                        document.getElementById('tripsContainer').innerHTML = '<div class="empty-state">请从左侧选择一个专案</div>';
+                        document.getElementById('tripsContainer').innerHTML = '<div class="empty-state">請從左側選擇一個專案</div>';
                         document.getElementById('currentProjectNameSpan').innerText = '';
                     }
                     await loadProjects();
                 } catch (error) {
-                    alert('删除失败：' + error.message);
+                    alert('刪除失敗：' + error.message);
                 }
             });
         });
@@ -351,46 +418,88 @@
         });
     }
 
-    // 选中专案
+    // 選取專案（並自動修正 order 若有必要）
     async function selectProject(projectId) {
         const snapshot = await get(ref(db, `${PROJECTS_PATH}/${projectId}`));
         if (!snapshot.exists()) return;
         const data = snapshot.val();
-        currentProject = { id: projectId, name: data.name, trips: data.trips || [] };
+        let trips = data.trips || [];
+        
+        // 確保 trips 都有 order 欄位 (舊資料相容)
+        const { trips: normalizedTrips, needsUpdate } = ensureTripsHaveOrder(trips);
+        
+        currentProject = { id: projectId, name: data.name, trips: normalizedTrips };
+        
+        // 如果需要更新 order 至資料庫 (僅第一次修正)
+        if (needsUpdate) {
+            try {
+                await update(ref(db, `${PROJECTS_PATH}/${projectId}`), { trips: normalizedTrips });
+            } catch (e) {
+                console.warn('更新 order 欄位失敗', e);
+            }
+        }
+        
         document.getElementById('currentProjectNameSpan').innerHTML = `：${escapeHtml(currentProject.name)}`;
         renderTripsList(currentProject.trips);
     }
 
+    // 取得相同起始日期的下一個 order 值 (新增時使用)
+    function getNextOrderForDate(trips, startDate) {
+        const sameDateTrips = trips.filter(t => t.startDate === startDate);
+        if (sameDateTrips.length === 0) return 0;
+        const maxOrder = Math.max(...sameDateTrips.map(t => t.order || 0));
+        return maxOrder + 1;
+    }
+
+    // 渲染行程 (依 startDate → order)
     function renderTripsList(trips) {
         const container = document.getElementById('tripsContainer');
         if (!container) return;
         if (!trips || trips.length === 0) {
-            container.innerHTML = '<div class="empty-state">✈️ 尚未添加行程，点「新增行程」开始规划</div>';
+            container.innerHTML = '<div class="empty-state">✈️ 尚未添加行程，點「新增行程」開始規劃</div>';
             return;
         }
-        const sorted = [...trips].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-        container.innerHTML = sorted.map(trip => `
+        // 排序：先日期，再 order
+        const sorted = [...trips].sort((a, b) => {
+            if (a.startDate !== b.startDate) return a.startDate.localeCompare(b.startDate);
+            return (a.order || 0) - (b.order || 0);
+        });
+        
+        container.innerHTML = sorted.map((trip, index) => {
+            // 判斷是否為同日期組內的第一個或最後一個，以便顯示移動按鈕狀態（視覺提示，不強制禁用）
+            const sameDateTrips = sorted.filter(t => t.startDate === trip.startDate);
+            const isFirstInGroup = sameDateTrips.length > 0 && sameDateTrips[0].id === trip.id;
+            const isLastInGroup = sameDateTrips.length > 0 && sameDateTrips[sameDateTrips.length-1].id === trip.id;
+            
+            return `
             <div class="trip-card" data-trip-id="${trip.id}">
                 <div class="trip-info">
                     <div class="trip-dates">📅 ${trip.startDate} 至 ${trip.endDate}</div>
                     <div class="trip-location">📍 ${escapeHtml(trip.location)}</div>
                 </div>
-                <div class="project-actions">
+                <div class="trip-actions-group">
+                    <div class="move-group">
+                        <button class="btn btn-icon move-up" data-id="${trip.id}" ${isFirstInGroup ? 'disabled style="opacity:0.5;"' : ''} title="向上移動（同日起始）">⬆️</button>
+                        <button class="btn btn-icon move-down" data-id="${trip.id}" ${isLastInGroup ? 'disabled style="opacity:0.5;"' : ''} title="向下移動（同日起始）">⬇️</button>
+                    </div>
                     <button class="btn btn-outline edit-trip" data-id="${trip.id}" data-location="${escapeHtml(trip.location)}" data-start="${trip.startDate}" data-end="${trip.endDate}">✏️</button>
                     <button class="btn btn-danger delete-trip" data-id="${trip.id}">🗑️</button>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
+        
         bindTripEvents();
     }
 
     function bindTripEvents() {
+        // 編輯
         document.querySelectorAll('.edit-trip').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 openTripModal(btn.dataset.id, btn.dataset.location, btn.dataset.start, btn.dataset.end);
             });
         });
+        // 刪除
         document.querySelectorAll('.delete-trip').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
@@ -400,24 +509,84 @@
                 await updateTripsToProject(newTrips);
             });
         });
+        // 上移
+        document.querySelectorAll('.move-up').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const tripId = btn.dataset.id;
+                await moveTrip(tripId, 'up');
+            });
+        });
+        // 下移
+        document.querySelectorAll('.move-down').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const tripId = btn.dataset.id;
+                await moveTrip(tripId, 'down');
+            });
+        });
     }
 
+    // 移動行程 (僅在同一起始日期內交換 order)
+    async function moveTrip(tripId, direction) {
+        if (!currentProject) return;
+        const trips = [...currentProject.trips];
+        const targetIndex = trips.findIndex(t => t.id === tripId);
+        if (targetIndex === -1) return;
+        
+        const targetTrip = trips[targetIndex];
+        const startDate = targetTrip.startDate;
+        
+        // 找出同一天的所有行程，並按 order 排序
+        const sameDateTrips = trips.filter(t => t.startDate === startDate).sort((a, b) => (a.order || 0) - (b.order || 0));
+        if (sameDateTrips.length < 2) return; // 只有一個無法移動
+        
+        const pos = sameDateTrips.findIndex(t => t.id === tripId);
+        if (pos === -1) return;
+        
+        let swapWith = null;
+        if (direction === 'up' && pos > 0) {
+            swapWith = sameDateTrips[pos - 1];
+        } else if (direction === 'down' && pos < sameDateTrips.length - 1) {
+            swapWith = sameDateTrips[pos + 1];
+        } else {
+            return; // 已在邊界
+        }
+        
+        // 交換 order 值
+        const tempOrder = targetTrip.order;
+        targetTrip.order = swapWith.order;
+        swapWith.order = tempOrder;
+        
+        // 更新整個 trips (已經包含修改後的 order)
+        // 但需要保持所有 trip 的參考，直接使用 trips 陣列
+        // 注意 trips 中其他日期的行程不變
+        await updateTripsToProject(trips);
+    }
+
+    // 更新專案下的 trips (儲存至 Firebase)
     async function updateTripsToProject(newTrips) {
         if (!currentProject) return;
-        const sortedTrips = [...newTrips].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+        // 確保每個 trip 都有 order (以防萬一)
+        const { trips: normalized } = ensureTripsHaveOrder(newTrips);
+        // 再次排序
+        const sortedTrips = normalized.sort((a, b) => {
+            if (a.startDate !== b.startDate) return a.startDate.localeCompare(b.startDate);
+            return (a.order || 0) - (b.order || 0);
+        });
         try {
             await update(ref(db, `${PROJECTS_PATH}/${currentProject.id}`), { trips: sortedTrips });
             currentProject.trips = sortedTrips;
             renderTripsList(sortedTrips);
         } catch (error) {
-            alert('更新行程失败：' + error.message);
+            alert('更新行程失敗：' + error.message);
         }
     }
 
     function openProjectModal(id = null, name = '') {
         editingProjectId = id;
         document.getElementById('projectNameInput').value = name;
-        document.getElementById('modalProjectTitle').innerText = id ? '编辑专案' : '新增专案';
+        document.getElementById('modalProjectTitle').innerText = id ? '編輯專案' : '新增專案';
         document.getElementById('projectModal').classList.remove('hidden');
     }
 
@@ -426,13 +595,13 @@
         document.getElementById('tripLocation').value = location;
         document.getElementById('tripStartDate').value = startDate;
         document.getElementById('tripEndDate').value = endDate;
-        document.getElementById('modalTripTitle').innerText = id ? '编辑行程' : '新增行程';
+        document.getElementById('modalTripTitle').innerText = id ? '編輯行程' : '新增行程';
         document.getElementById('tripModal').classList.remove('hidden');
     }
 
     async function handleSaveProject() {
         const name = document.getElementById('projectNameInput').value.trim();
-        if (!name) return alert('请输入专案名称');
+        if (!name) return alert('請輸入專案名稱');
         try {
             if (editingProjectId) {
                 await update(ref(db, `${PROJECTS_PATH}/${editingProjectId}`), { name });
@@ -450,44 +619,58 @@
                 selectProject(editingProjectId);
             }
         } catch (error) {
-            alert(`专案保存失败：${error.message}`);
+            alert(`專案儲存失敗：${error.message}`);
             console.error(error);
         }
     }
 
     async function handleSaveTrip() {
-        if (!currentProject) return alert('请先选择一个专案');
+        if (!currentProject) return alert('請先選擇一個專案');
         const location = document.getElementById('tripLocation').value.trim();
         const startDate = document.getElementById('tripStartDate').value;
         const endDate = document.getElementById('tripEndDate').value;
-        if (!location || !startDate || !endDate) return alert('请完整填写地点和日期');
-        if (new Date(startDate) > new Date(endDate)) return alert('结束日期不能早于起始日期');
+        if (!location || !startDate || !endDate) return alert('請完整填寫地點和日期');
+        if (new Date(startDate) > new Date(endDate)) return alert('結束日期不能早於起始日期');
 
         let newTrips = [...currentProject.trips];
+        
         if (editingTripId) {
             const index = newTrips.findIndex(t => t.id === editingTripId);
-            if (index !== -1) newTrips[index] = { ...newTrips[index], location, startDate, endDate };
+            if (index !== -1) {
+                const oldTrip = newTrips[index];
+                // 若起始日期改變，重新計算 order (放到新日期組的最後)
+                if (oldTrip.startDate !== startDate) {
+                    const newOrder = getNextOrderForDate(newTrips, startDate);
+                    newTrips[index] = { ...oldTrip, location, startDate, endDate, order: newOrder };
+                } else {
+                    // 日期沒變，保留原 order
+                    newTrips[index] = { ...oldTrip, location, startDate, endDate };
+                }
+            }
         } else {
-            newTrips.push({ id: generateId(), location, startDate, endDate });
+            // 新增：計算 order
+            const newOrder = getNextOrderForDate(newTrips, startDate);
+            newTrips.push({ id: generateId(), location, startDate, endDate, order: newOrder });
         }
+        
         try {
             await updateTripsToProject(newTrips);
             document.getElementById('tripModal').classList.add('hidden');
             editingTripId = null;
         } catch (error) {
-            alert(`行程保存失败：${error.message}`);
+            alert(`行程儲存失敗：${error.message}`);
         }
     }
 
-    // 事件绑定
+    // 事件綁定
     document.getElementById('newProjectBtn').addEventListener('click', () => openProjectModal());
     document.getElementById('addTripBtn').addEventListener('click', () => {
-        if (!currentProject) return alert('请先选择一个专案');
+        if (!currentProject) return alert('請先選擇一個專案');
         openTripModal();
     });
     document.getElementById('viewProjectBtn').addEventListener('click', () => {
         if (currentProject) window.location.href = `view.html?guid=${currentProject.id}`;
-        else alert('请先选择一个专案');
+        else alert('請先選擇一個專案');
     });
     document.getElementById('saveProjectBtn').addEventListener('click', handleSaveProject);
     document.getElementById('cancelProjectModal').addEventListener('click', () => document.getElementById('projectModal').classList.add('hidden'));
