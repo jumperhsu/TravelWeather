@@ -78,7 +78,7 @@
         .weather-content { padding: 16px 20px 20px; flex: 1; }
         .daily-forecast {
             margin-top: 12px;
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
             padding-right: 4px;
         }
@@ -88,6 +88,8 @@
             justify-content: space-between;
             padding: 8px 0;
             border-bottom: 1px dashed #d9e2f0;
+            flex-wrap: wrap;
+            gap: 4px;
         }
         .daily-item:last-child { border-bottom: none; }
         .daily-date { font-size: 0.9rem; font-weight: 500; color: #2c3e66; min-width: 70px; }
@@ -96,6 +98,15 @@
         .daily-high { color: #c23b22; font-weight: 600; }
         .daily-low { color: #2c6e9e; }
         .daily-desc { font-size: 0.8rem; color: #5b7aa2; max-width: 90px; text-align: right; }
+        .daily-outfit {
+            font-size: 0.75rem;
+            color: #6b5b8a;
+            background: #f0ebf8;
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-left: 8px;
+            white-space: nowrap;
+        }
         .summary-temp {
             display: flex;
             justify-content: space-around;
@@ -194,6 +205,15 @@
         .high { color: #c23b22; }
         .low { color: #2c6e9e; }
         .cell-desc { font-size: 0.7rem; color: #4f6f8f; white-space: nowrap; }
+        .cell-outfit {
+            font-size: 0.65rem;
+            color: #6b5b8a;
+            background: #f0ebf8;
+            padding: 2px 5px;
+            border-radius: 10px;
+            margin-top: 3px;
+            white-space: nowrap;
+        }
         .mock-badge {
             background: #fff3cf;
             color: #b16e1a;
@@ -442,6 +462,70 @@
         }
     }
 
+    // ----- 著裝建議函數 -----
+    function getOutfitSuggestion(highTemp, lowTemp, weatherCode, location) {
+        // 取得平均溫度作為主要參考
+        const avgTemp = (parseFloat(highTemp) + parseFloat(lowTemp)) / 2;
+        const minTemp = parseFloat(lowTemp);
+        const maxTemp = parseFloat(highTemp);
+        
+        // 判斷是否有降雨
+        const isRainy = [51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99].includes(weatherCode);
+        const isSnowy = [71, 73, 75].includes(weatherCode);
+        
+        // 根據城市判斷地區特色
+        const isNortheast = location && (location.includes('瀋陽') || location.includes('沈阳') || 
+                                         location.includes('哈爾濱') || location.includes('哈尔滨'));
+        const isSouth = location && (location.includes('上海') || location.includes('寧波') || 
+                                     location.includes('宁波'));
+        
+        let outfit = '';
+        let accessories = [];
+        
+        if (minTemp <= 0) {
+            outfit = '🧥 厚羽絨服+毛衣';
+            accessories = ['🧣圍巾', '🧤手套', '🧢毛帽'];
+        } else if (minTemp <= 5) {
+            outfit = '🧥 羽絨服/厚大衣';
+            accessories = ['🧣圍巾', '🧤手套'];
+        } else if (minTemp <= 10) {
+            outfit = '🧥 大衣/風衣';
+            accessories = ['🧣薄圍巾'];
+        } else if (minTemp <= 15) {
+            outfit = '👔 夾克/薄外套';
+            if (isSouth) accessories.push('🌂備用雨具');
+        } else if (minTemp <= 20) {
+            outfit = '👕 長袖+薄外套';
+            if (isSouth) accessories.push('🌂備用雨具');
+        } else if (minTemp <= 25) {
+            outfit = '👕 短袖+薄外套';
+            accessories.push('☀️防曬');
+        } else {
+            outfit = '🩳 短袖短褲';
+            accessories.push('☀️防曬', '🧴防曬乳');
+        }
+        
+        // 降雨/雪特別提醒
+        if (isRainy) {
+            accessories.push('☔ 雨具必備');
+            if (minTemp < 15) accessories.push('💧防水鞋');
+        }
+        if (isSnowy) {
+            accessories.push('❄️ 防滑鞋');
+        }
+        
+        // 日夜溫差大提醒
+        const tempDiff = maxTemp - minTemp;
+        if (tempDiff > 12) {
+            accessories.push('🌡️ 注意溫差');
+        }
+        
+        // 限制配件數量避免過長
+        const accStr = accessories.slice(0, 3).join(' ');
+        
+        return accStr ? `${outfit} ${accStr}` : outfit;
+    }
+
     // ----- 地理編碼與天氣獲取 (與前版相同) -----
     async function getCoordinates(locationName) {
         for (const [key, coords] of Object.entries(locationCoordinates)) {
@@ -532,9 +616,15 @@
         while (cur <= end) {
             const dateStr = cur.toISOString().slice(0,10);
             const apiEntry = apiDaily.find(d => d.date === dateStr);
-            if (apiEntry) fullDaily.push(apiEntry);
-            else {
-                fullDaily.push({ ...generateMockDaily(dateStr, dateStr, location)[0], isMock: true });
+            if (apiEntry) {
+                // 為 API 資料加入著裝建議
+                apiEntry.outfit = getOutfitSuggestion(apiEntry.maxTemp, apiEntry.minTemp, apiEntry.weatherCode, location);
+                fullDaily.push(apiEntry);
+            } else {
+                const mockDay = generateMockDaily(dateStr, dateStr, location)[0];
+                mockDay.isMock = true;
+                mockDay.outfit = getOutfitSuggestion(mockDay.maxTemp, mockDay.minTemp, mockDay.weatherCode, location);
+                fullDaily.push(mockDay);
                 isPartial = true;
             }
             cur.setDate(cur.getDate() + 1);
@@ -580,6 +670,7 @@
                         ${daily.map(day => {
                             const icon = day.icon || getWeatherDescription(day.weatherCode)[1];
                             const desc = day.desc || getWeatherDescription(day.weatherCode)[0];
+                            const outfit = day.outfit || getOutfitSuggestion(day.maxTemp, day.minTemp, day.weatherCode, trip.location);
                             return `<div class="daily-item">
                                 <span class="daily-date">${new Date(day.date).getMonth()+1}/${new Date(day.date).getDate()}</span>
                                 <span class="daily-icon">${icon}</span>
@@ -588,6 +679,7 @@
                                     <span class="daily-high">${Math.round(day.maxTemp)}°</span>
                                     <span class="daily-low">${Math.round(day.minTemp)}°</span>
                                 </span>
+                                <span class="daily-outfit" title="著裝建議">👗 ${outfit}</span>
                             </div>`;
                         }).join('')}
                     </div>
@@ -677,6 +769,7 @@
                     const icon = dayData.icon || getWeatherDescription(dayData.weatherCode)[1];
                     const desc = dayData.desc || getWeatherDescription(dayData.weatherCode)[0];
                     const isMock = dayData.isMock || result.isClimate;
+                    const outfit = dayData.outfit || getOutfitSuggestion(dayData.maxTemp, dayData.minTemp, dayData.weatherCode, trip.location);
                     
                     const cellDiv = document.createElement('div');
                     cellDiv.className = 'cell-content';
@@ -687,6 +780,7 @@
                             <span class="low">${Math.round(dayData.minTemp)}°</span>
                         </span>
                         <span class="cell-desc">${desc}</span>
+                        <span class="cell-outfit" title="著裝建議">👗 ${outfit}</span>
                         ${isMock ? '<span class="mock-badge">📘 參考</span>' : ''}
                     `;
                     td.appendChild(cellDiv);
@@ -706,7 +800,7 @@
         if (hasClimateNote) {
             const note = document.createElement('div');
             note.className = 'info-note';
-            note.innerHTML = '📘 標示「參考」為歷史氣候模擬資料，實際預報將於接近日期更新。';
+            note.innerHTML = '📘 標示「參考」為歷史氣候模擬資料，實際預報將於接近日期更新。<br>👗 著裝建議根據當日高低溫及天氣狀況自動生成，僅供參考。';
             grid.appendChild(note);
         }
         grid.appendChild(wrapper);
