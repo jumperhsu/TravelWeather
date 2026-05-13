@@ -126,16 +126,78 @@
         }
         .error-card { background: #ffe0e0; }
 
+        /* ----- 表格容器與滾動箭頭樣式 ----- */
+        .table-scroll-container {
+            position: relative;
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+        }
+        
+        .scroll-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            min-width: 44px;
+            background: rgba(255,255,255,0.85);
+            border: none;
+            cursor: pointer;
+            font-size: 1.8rem;
+            color: #2a5591;
+            transition: all 0.2s;
+            z-index: 10;
+            backdrop-filter: blur(2px);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        .scroll-arrow-left {
+            border-radius: 24px 0 0 24px;
+        }
+        
+        .scroll-arrow-right {
+            border-radius: 0 24px 24px 0;
+        }
+        
+        .scroll-arrow:hover {
+            background: #2a5591;
+            color: white;
+        }
+        
+        .scroll-arrow:active {
+            transform: scale(0.95);
+        }
+        
+        .scroll-arrow:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        
+        .scroll-arrow:disabled:hover {
+            background: rgba(255,255,255,0.85);
+            color: #2a5591;
+        }
+
         /* ----- 表格樣式 (桌面版使用) ----- */
         .table-wrapper {
+            flex: 1;
             overflow-x: auto;
-            margin-top: 10px;
             border-radius: 24px;
             background: rgba(255,255,255,0.7);
             backdrop-filter: blur(2px);
             box-shadow: 0 15px 30px -10px rgba(0,0,0,0.15);
             padding: 4px;
+            scroll-behavior: smooth;
+            /* 隱藏滾動條但保持可滾動 */
+            -ms-overflow-style: none;
+            scrollbar-width: none;
         }
+        
+        .table-wrapper::-webkit-scrollbar {
+            display: none;
+        }
+        
         .weather-table {
             width: 100%;
             border-collapse: collapse;
@@ -206,10 +268,10 @@
         .low { color: #2c6e9e; }
         .cell-desc { font-size: 0.7rem; color: #4f6f8f; white-space: nowrap; }
         .cell-outfit {
-            font-size: 0.65rem;
+            font-size: 0.85rem;  /* 從 0.65rem 放大到 0.85rem */
             color: #6b5b8a;
             background: #f0ebf8;
-            padding: 2px 5px;
+            padding: 3px 6px;    /* 稍微增加內邊距 */
             border-radius: 10px;
             margin-top: 3px;
             white-space: nowrap;
@@ -296,11 +358,29 @@
             .header h1, .project-badge, .about-btn { display: none !important; }
             .header { margin-bottom: 16px; }
             body { padding-top: 12px; }
+            /* 手機版隱藏滾動箭頭 */
+            .scroll-arrow { display: none !important; }
+            .table-wrapper {
+                border-radius: 24px;
+                -ms-overflow-style: auto;
+                scrollbar-width: auto;
+            }
+            .table-wrapper::-webkit-scrollbar {
+                display: block;
+            }
         }
 
-        /* 小螢幕時表格容器隱藏，改用卡片 (由 JS 控制，此處僅輔助) */
-        .table-container, .cards-container {
-            width: 100%;
+        /* 平板以下也隱藏箭頭，保留原生滾動 */
+        @media (max-width: 768px) {
+            .scroll-arrow { display: none !important; }
+            .table-wrapper {
+                border-radius: 24px;
+                -ms-overflow-style: auto;
+                scrollbar-width: auto;
+            }
+            .table-wrapper::-webkit-scrollbar {
+                display: block;
+            }
         }
     </style>
 </head>
@@ -464,16 +544,13 @@
 
     // ----- 著裝建議函數 -----
     function getOutfitSuggestion(highTemp, lowTemp, weatherCode, location) {
-        // 取得平均溫度作為主要參考
         const avgTemp = (parseFloat(highTemp) + parseFloat(lowTemp)) / 2;
         const minTemp = parseFloat(lowTemp);
         const maxTemp = parseFloat(highTemp);
         
-        // 判斷是否有降雨
         const isRainy = [51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99].includes(weatherCode);
         const isSnowy = [71, 73, 75].includes(weatherCode);
         
-        // 根據城市判斷地區特色
         const isNortheast = location && (location.includes('瀋陽') || location.includes('沈阳') || 
                                          location.includes('哈爾濱') || location.includes('哈尔滨'));
         const isSouth = location && (location.includes('上海') || location.includes('寧波') || 
@@ -505,7 +582,6 @@
             accessories.push('☀️防曬', '🧴防曬乳');
         }
         
-        // 降雨/雪特別提醒
         if (isRainy) {
             accessories.push('☔ 雨具必備');
             if (minTemp < 15) accessories.push('💧防水鞋');
@@ -514,19 +590,88 @@
             accessories.push('❄️ 防滑鞋');
         }
         
-        // 日夜溫差大提醒
         const tempDiff = maxTemp - minTemp;
         if (tempDiff > 12) {
             accessories.push('🌡️ 注意溫差');
         }
         
-        // 限制配件數量避免過長
         const accStr = accessories.slice(0, 3).join(' ');
         
         return accStr ? `${outfit} ${accStr}` : outfit;
     }
 
-    // ----- 地理編碼與天氣獲取 (與前版相同) -----
+    // ----- 表格水平滾動功能 -----
+    function setupTableScroll(wrapperElement) {
+        const scrollContainer = wrapperElement.querySelector('.table-wrapper');
+        const leftArrow = wrapperElement.querySelector('.scroll-arrow-left');
+        const rightArrow = wrapperElement.querySelector('.scroll-arrow-right');
+        
+        if (!scrollContainer || !leftArrow || !rightArrow) return;
+        
+        // 滾動距離：一次滾動約一個日期欄位寬度 (約120px)
+        const scrollAmount = 250;
+        
+        // 更新箭頭狀態
+        function updateArrowStates() {
+            const scrollLeft = scrollContainer.scrollLeft;
+            const maxScrollLeft = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+            
+            // 左箭頭：如果已經在最左邊，禁用
+            if (scrollLeft <= 0) {
+                leftArrow.disabled = true;
+                leftArrow.style.opacity = '0.3';
+            } else {
+                leftArrow.disabled = false;
+                leftArrow.style.opacity = '1';
+            }
+            
+            // 右箭頭：如果已經在最右邊，禁用
+            if (scrollLeft >= maxScrollLeft - 1) {
+                rightArrow.disabled = true;
+                rightArrow.style.opacity = '0.3';
+            } else {
+                rightArrow.disabled = false;
+                rightArrow.style.opacity = '1';
+            }
+        }
+        
+        // 點擊左箭頭
+        leftArrow.addEventListener('click', () => {
+            scrollContainer.scrollBy({
+                left: -scrollAmount,
+                behavior: 'smooth'
+            });
+        });
+        
+        // 點擊右箭頭
+        rightArrow.addEventListener('click', () => {
+            scrollContainer.scrollBy({
+                left: scrollAmount,
+                behavior: 'smooth'
+            });
+        });
+        
+        // 監聽滾動事件，更新箭頭狀態
+        scrollContainer.addEventListener('scroll', updateArrowStates);
+        
+        // 監聽滑鼠滾輪水平滾動
+        scrollContainer.addEventListener('wheel', (e) => {
+            if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                // 水平滾動時阻止頁面垂直滾動
+                e.preventDefault();
+                scrollContainer.scrollLeft += e.deltaX;
+            }
+        }, { passive: false });
+        
+        // 初始化箭頭狀態
+        updateArrowStates();
+        
+        // 使用 MutationObserver 監測表格內容變化並更新箭頭
+        const observer = new MutationObserver(updateArrowStates);
+        observer.observe(scrollContainer, { childList: true, subtree: true, characterData: true });
+    }
+
+    // ----- 地理編碼與天氣獲取 -----
     async function getCoordinates(locationName) {
         for (const [key, coords] of Object.entries(locationCoordinates)) {
             if (locationName.includes(key) || key.includes(locationName)) return coords;
@@ -617,7 +762,6 @@
             const dateStr = cur.toISOString().slice(0,10);
             const apiEntry = apiDaily.find(d => d.date === dateStr);
             if (apiEntry) {
-                // 為 API 資料加入著裝建議
                 apiEntry.outfit = getOutfitSuggestion(apiEntry.maxTemp, apiEntry.minTemp, apiEntry.weatherCode, location);
                 fullDaily.push(apiEntry);
             } else {
@@ -645,7 +789,7 @@
     // ----- 卡片渲染 (手機版) -----
     function renderWeatherCards(trips, results) {
         const grid = document.getElementById('weatherGrid');
-        grid.className = 'weather-grid'; // 確保為卡片容器樣式
+        grid.className = 'weather-grid';
         grid.innerHTML = '';
         
         trips.forEach((trip, i) => {
@@ -693,7 +837,7 @@
     // ----- 表格渲染 (桌面版) -----
     function renderWeatherTable(trips, results) {
         const grid = document.getElementById('weatherGrid');
-        grid.className = ''; // 清除卡片樣式
+        grid.className = '';
         grid.innerHTML = '';
         
         if (!trips.length) return;
@@ -714,6 +858,18 @@
             return;
         }
 
+        // 建立滾動容器結構：左箭頭 + 表格容器 + 右箭頭
+        const scrollContainerWrapper = document.createElement('div');
+        scrollContainerWrapper.className = 'table-scroll-container';
+        
+        // 左箭頭按鈕
+        const leftArrow = document.createElement('button');
+        leftArrow.className = 'scroll-arrow scroll-arrow-left';
+        leftArrow.innerHTML = '◀';
+        leftArrow.title = '向左滾動';
+        leftArrow.setAttribute('aria-label', '向左滾動');
+        
+        // 表格容器
         const wrapper = document.createElement('div');
         wrapper.className = 'table-wrapper';
         
@@ -796,6 +952,21 @@
         table.appendChild(tbody);
         wrapper.appendChild(table);
         
+        // 右箭頭按鈕
+        const rightArrow = document.createElement('button');
+        rightArrow.className = 'scroll-arrow scroll-arrow-right';
+        rightArrow.innerHTML = '▶';
+        rightArrow.title = '向右滾動';
+        rightArrow.setAttribute('aria-label', '向右滾動');
+        
+        // 組裝
+        scrollContainerWrapper.appendChild(leftArrow);
+        scrollContainerWrapper.appendChild(wrapper);
+        scrollContainerWrapper.appendChild(rightArrow);
+        
+        // 先加入 grid
+        grid.appendChild(scrollContainerWrapper);
+        
         const hasClimateNote = results.some(r => r.isClimate);
         if (hasClimateNote) {
             const note = document.createElement('div');
@@ -803,7 +974,9 @@
             note.innerHTML = '📘 標示「參考」為歷史氣候模擬資料，實際預報將於接近日期更新。<br>👗 著裝建議根據當日高低溫及天氣狀況自動生成，僅供參考。';
             grid.appendChild(note);
         }
-        grid.appendChild(wrapper);
+        
+        // 設置箭頭滾動功能
+        setupTableScroll(scrollContainerWrapper);
     }
 
     function escapeHtml(str) {
