@@ -52,6 +52,39 @@
         }
         .about-btn:hover { background: #2a5591; color: white; }
 
+        /* ----- 載入進度條 ----- */
+        .loading-progress {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            background: rgba(255,255,255,0.8);
+            border-radius: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .progress-bar-bg {
+            flex: 1;
+            min-width: 150px;
+            height: 8px;
+            background: #e0e7f5;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2a5591, #4a8bc2);
+            border-radius: 10px;
+            transition: width 0.4s ease;
+            width: 0%;
+        }
+        .progress-text {
+            font-size: 0.85rem;
+            color: #2c3e66;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
         /* ----- 卡片樣式 (手機版使用) ----- */
         .weather-grid {
             display: flex;
@@ -68,9 +101,22 @@
             backdrop-filter: blur(2px);
             box-shadow: 0 20px 35px -12px rgba(0,0,0,0.2);
             overflow: hidden;
-            transition: 0.2s;
+            transition: 0.3s;
             display: flex;
             flex-direction: column;
+            animation: fadeInUp 0.4s ease;
+        }
+        .weather-card.loading-card {
+            opacity: 0.7;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 0.9; }
         }
         .card-header { padding: 18px 20px 8px; border-bottom: 1px solid #eef2fa; }
         .location-name { font-size: 1.5rem; font-weight: 700; color: #1f3b64; }
@@ -125,6 +171,24 @@
             margin-top: 12px;
         }
         .error-card { background: #ffe0e0; }
+        
+        /* 骨架屏載入動畫 */
+        .skeleton {
+            background: linear-gradient(90deg, #e8ecf5 25%, #f0f3fa 50%, #e8ecf5 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 12px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skeleton-line {
+            height: 16px;
+            margin: 8px 0;
+        }
+        .skeleton-line.short { width: 60%; }
+        .skeleton-line.medium { width: 80%; }
 
         /* ----- 表格容器與滾動箭頭樣式 ----- */
         .table-scroll-container {
@@ -189,7 +253,6 @@
             box-shadow: 0 15px 30px -10px rgba(0,0,0,0.15);
             padding: 4px;
             scroll-behavior: smooth;
-            /* 隱藏滾動條但保持可滾動 */
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
@@ -268,10 +331,10 @@
         .low { color: #2c6e9e; }
         .cell-desc { font-size: 0.7rem; color: #4f6f8f; white-space: nowrap; }
         .cell-outfit {
-            font-size: 0.85rem;  /* 從 0.65rem 放大到 0.85rem */
+            font-size: 0.85rem;
             color: #6b5b8a;
             background: #f0ebf8;
-            padding: 3px 6px;    /* 稍微增加內邊距 */
+            padding: 3px 6px;
             border-radius: 10px;
             margin-top: 3px;
             white-space: nowrap;
@@ -298,6 +361,13 @@
             background: rgba(255,255,255,0.5);
             border-radius: 40px;
             color: #2c3e66;
+        }
+        
+        /* 表格行載入動畫 */
+        .weather-table tbody tr.loading-row td {
+            background: linear-gradient(90deg, #f0f3f8 25%, #f8f9fc 50%, #f0f3f8 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
         }
 
         /* 彈窗 */
@@ -358,16 +428,6 @@
             .header h1, .project-badge, .about-btn { display: none !important; }
             .header { margin-bottom: 16px; }
             body { padding-top: 12px; }
-            /* 手機版隱藏滾動箭頭 */
-            .scroll-arrow { display: none !important; }
-            .table-wrapper {
-                border-radius: 24px;
-                -ms-overflow-style: auto;
-                scrollbar-width: auto;
-            }
-            .table-wrapper::-webkit-scrollbar {
-                display: block;
-            }
         }
 
         /* 平板以下也隱藏箭頭，保留原生滾動 */
@@ -392,6 +452,15 @@
             <div id="projectTitleArea" class="project-badge">載入專案中...</div>
         </div>
         <button class="about-btn" id="aboutBtn">ℹ️ 關於</button>
+    </div>
+
+    <!-- 載入進度條 -->
+    <div id="loadingProgress" class="loading-progress hidden">
+        <span>⏳</span>
+        <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="progressFill"></div>
+        </div>
+        <span class="progress-text" id="progressText">載入中...</span>
     </div>
 
     <div id="weatherGrid" class="weather-grid">⏳ 讀取行程並同步氣象資料...</div>
@@ -463,7 +532,8 @@
     // 儲存資料供 resize 重新渲染
     let currentTrips = [];
     let currentResults = [];
-    let currentRenderMode = 'card'; // 'card' 或 'table'
+    let currentRenderMode = 'card';
+    let allDatesSet = new Set();
 
     // 關於彈窗
     const aboutModal = document.getElementById('aboutModal');
@@ -471,11 +541,16 @@
     document.getElementById('closeAboutModal').addEventListener('click', () => aboutModal.classList.add('hidden'));
     aboutModal.addEventListener('click', (e) => { if (e.target === aboutModal) aboutModal.classList.add('hidden'); });
 
+    // 進度條元素
+    const loadingProgress = document.getElementById('loadingProgress');
+    const progressFill = document.getElementById('progressFill');
+    const progressText = document.getElementById('progressText');
+
     if (!guid) {
         document.getElementById('weatherGrid').innerHTML = '<div style="background:#ffe0e0; padding:20px; border-radius:40px;">❌ 未提供專案編號，請從設定模式進入</div>';
         document.getElementById('projectTitleArea').innerText = '無專案';
     } else {
-        loadProjectAndWeather(guid);
+        loadProjectAndWeatherSequentially(guid);
     }
 
     // ----- 響應式偵測 -----
@@ -485,14 +560,11 @@
 
     function reRender() {
         if (!currentTrips.length) return;
-        const grid = document.getElementById('weatherGrid');
         const newMode = getRenderMode();
-        if (newMode === 'card') {
-            renderWeatherCards(currentTrips, currentResults);
-        } else {
-            renderWeatherTable(currentTrips, currentResults);
+        if (newMode !== currentRenderMode) {
+            buildFullView(currentTrips, currentResults);
+            currentRenderMode = newMode;
         }
-        currentRenderMode = newMode;
     }
 
     // 防抖 resize
@@ -507,52 +579,393 @@
         }, 150);
     });
 
-    async function loadProjectAndWeather(projectId) {
+    // ----- 逐一載入天氣資料（修復版） -----
+    async function loadProjectAndWeatherSequentially(projectId) {
+        const grid = document.getElementById('weatherGrid');
+        
         try {
+            // 1. 先載入專案資料
             const projectRef = ref(db, `${PROJECTS_PATH}/${projectId}`);
             const snapshot = await get(projectRef);
             if (!snapshot.exists()) throw new Error("專案不存在");
             const project = { id: projectId, ...snapshot.val() };
             const trips = project.trips || [];
+            
             document.getElementById('projectTitleArea').innerHTML = `📌 ${escapeHtml(project.name)} ｜ 共 ${trips.length} 個行程`;
             
             if (trips.length === 0) {
-                document.getElementById('weatherGrid').innerHTML = '<div class="empty-state">✨ 尚無行程，請先至設定模式添加</div>';
+                grid.innerHTML = '<div class="empty-state">✨ 尚無行程，請先至設定模式添加</div>';
                 return;
             }
 
             const sortedTrips = [...trips].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-            const weatherPromises = sortedTrips.map(trip => fetchDetailedWeather(trip));
-            const weatherResults = await Promise.all(weatherPromises);
-            
-            // 儲存全域
             currentTrips = sortedTrips;
-            currentResults = weatherResults;
-            
-            // 根據螢幕大小選擇渲染模式
+            currentResults = new Array(sortedTrips.length).fill(null);
             currentRenderMode = getRenderMode();
-            if (currentRenderMode === 'card') {
-                renderWeatherCards(sortedTrips, weatherResults);
-            } else {
-                renderWeatherTable(sortedTrips, weatherResults);
+            allDatesSet = new Set();
+            
+            // 2. 顯示進度條
+            loadingProgress.classList.remove('hidden');
+            progressFill.style.width = '0%';
+            progressText.textContent = `準備載入 ${sortedTrips.length} 個行程...`;
+            
+            // 3. 渲染初始骨架屏
+            renderInitialSkeletons(sortedTrips);
+            
+            // 4. 逐一載入每個行程的天氣
+            for (let i = 0; i < sortedTrips.length; i++) {
+                const trip = sortedTrips[i];
+                
+                // 更新進度
+                const percent = Math.round((i / sortedTrips.length) * 100);
+                progressFill.style.width = percent + '%';
+                progressText.textContent = `正在載入 ${trip.location} (${i + 1}/${sortedTrips.length})...`;
+                
+                // 載入天氣資料
+                const result = await fetchDetailedWeather(trip);
+                currentResults[i] = result;
+                
+                // 蒐集日期
+                if (result.daily) {
+                    result.daily.forEach(d => allDatesSet.add(d.date));
+                }
+                
+                // 更新進度
+                const newPercent = Math.round(((i + 1) / sortedTrips.length) * 100);
+                progressFill.style.width = newPercent + '%';
+                
+                // 即時更新視圖
+                updateViewIncrementally(sortedTrips, currentResults, i);
             }
+            
+            // 5. 全部載入完成後，重建完整視圖確保一致性
+            buildFullView(sortedTrips, currentResults);
+            
+            // 6. 載入完成提示
+            progressText.textContent = `✅ 全部載入完成！共 ${sortedTrips.length} 個行程`;
+            
+            // 延遲隱藏進度條
+            setTimeout(() => {
+                loadingProgress.classList.add('hidden');
+            }, 1500);
+            
         } catch (err) {
             console.error(err);
-            document.getElementById('weatherGrid').innerHTML = `<div style="background:#ffe0e0; padding:20px; border-radius:40px;">⚠️ 載入失敗: ${err.message}</div>`;
+            grid.innerHTML = `<div style="background:#ffe0e0; padding:20px; border-radius:40px;">⚠️ 載入失敗: ${err.message}</div>`;
+            loadingProgress.classList.add('hidden');
         }
+    }
+
+    // ----- 初始骨架屏渲染 -----
+    function renderInitialSkeletons(trips) {
+        const grid = document.getElementById('weatherGrid');
+        const mode = getRenderMode();
+        
+        if (mode === 'card') {
+            grid.className = 'weather-grid';
+            grid.innerHTML = trips.map((trip, i) => `
+                <div class="weather-card loading-card" id="card-${i}">
+                    <div class="card-header">
+                        <div class="location-name">📍 ${escapeHtml(trip.location)}</div>
+                        <div class="date-range">📅 ${trip.startDate} 至 ${trip.endDate}</div>
+                    </div>
+                    <div class="weather-content">
+                        <div class="skeleton skeleton-line medium"></div>
+                        <div class="skeleton skeleton-line short"></div>
+                        <div class="skeleton skeleton-line medium" style="margin-top:16px;"></div>
+                        <div class="skeleton skeleton-line short"></div>
+                        <div class="skeleton skeleton-line medium"></div>
+                        <div style="text-align:center; padding:20px; color:#8899bb;">⏳ 載入天氣資料中...</div>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            // 表格模式的初始骨架屏
+            renderTableSkeleton(trips);
+        }
+    }
+
+    // ----- 表格骨架屏 -----
+    function renderTableSkeleton(trips) {
+        const grid = document.getElementById('weatherGrid');
+        grid.className = '';
+        
+        const scrollContainerWrapper = document.createElement('div');
+        scrollContainerWrapper.className = 'table-scroll-container';
+        scrollContainerWrapper.id = 'tableScrollContainer';
+        
+        const leftArrow = document.createElement('button');
+        leftArrow.className = 'scroll-arrow scroll-arrow-left';
+        leftArrow.innerHTML = '◀';
+        leftArrow.title = '向左滾動';
+        leftArrow.setAttribute('aria-label', '向左滾動');
+        
+        const wrapper = document.createElement('div');
+        wrapper.className = 'table-wrapper';
+        wrapper.id = 'tableWrapper';
+        
+        const table = document.createElement('table');
+        table.className = 'weather-table';
+        
+        const thead = document.createElement('thead');
+        const headerRow = document.createElement('tr');
+        headerRow.id = 'tableHeaderRow';
+        const thLocation = document.createElement('th');
+        thLocation.textContent = '📍 地點 / 行程';
+        headerRow.appendChild(thLocation);
+        const thPlaceholder = document.createElement('th');
+        thPlaceholder.textContent = '載入日期中...';
+        thPlaceholder.colSpan = 3;
+        thPlaceholder.id = 'placeholderTh';
+        headerRow.appendChild(thPlaceholder);
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+        
+        const tbody = document.createElement('tbody');
+        tbody.id = 'tableTbody';
+        trips.forEach((trip, i) => {
+            const tr = document.createElement('tr');
+            tr.className = 'loading-row';
+            tr.id = `table-row-${i}`;
+            tr.innerHTML = `
+                <td>
+                    <div class="location-info">
+                        <span class="location-name">${escapeHtml(trip.location)}</span>
+                        <span class="trip-meta">📅 ${trip.startDate} ~ ${trip.endDate}</span>
+                        <span class="avg-temp">🌡️ 載入中...</span>
+                    </div>
+                </td>
+                <td colspan="3" style="text-align:center; color:#8899bb;">⏳ 載入中...</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        wrapper.appendChild(table);
+        
+        const rightArrow = document.createElement('button');
+        rightArrow.className = 'scroll-arrow scroll-arrow-right';
+        rightArrow.innerHTML = '▶';
+        rightArrow.title = '向右滾動';
+        rightArrow.setAttribute('aria-label', '向右滾動');
+        
+        scrollContainerWrapper.appendChild(leftArrow);
+        scrollContainerWrapper.appendChild(wrapper);
+        scrollContainerWrapper.appendChild(rightArrow);
+        
+        grid.innerHTML = '';
+        grid.appendChild(scrollContainerWrapper);
+        
+        // 設置滾動功能
+        setupTableScroll(scrollContainerWrapper);
+    }
+
+    // ----- 增量更新視圖 -----
+    function updateViewIncrementally(trips, results, loadedIndex) {
+        const mode = getRenderMode();
+        
+        if (mode === 'card') {
+            updateCardIncrementally(trips, results, loadedIndex);
+        } else {
+            updateTableIncrementally(trips, results, loadedIndex);
+        }
+    }
+
+    // ----- 增量更新卡片 -----
+    function updateCardIncrementally(trips, results, loadedIndex) {
+        const trip = trips[loadedIndex];
+        const result = results[loadedIndex];
+        
+        if (!result) return;
+        
+        const card = document.getElementById(`card-${loadedIndex}`);
+        if (!card) return;
+        
+        card.classList.remove('loading-card');
+        const daily = result.daily || [];
+        const avgHigh = daily.length ? (daily.reduce((s,d)=>s+parseFloat(d.maxTemp),0)/daily.length).toFixed(1) : '--';
+        const avgLow = daily.length ? (daily.reduce((s,d)=>s+parseFloat(d.minTemp),0)/daily.length).toFixed(1) : '--';
+        
+        card.className = 'weather-card' + (result.error ? ' error-card' : '');
+        card.innerHTML = `
+            <div class="card-header">
+                <div class="location-name">📍 ${escapeHtml(trip.location)}</div>
+                <div class="date-range">📅 ${trip.startDate} 至 ${trip.endDate} · 共 ${daily.length} 天</div>
+            </div>
+            <div class="weather-content">
+                <div class="summary-temp">
+                    <span>🌡️ 平均高溫 ${avgHigh}°</span>
+                    <span>❄️ 平均低溫 ${avgLow}°</span>
+                </div>
+                <div class="daily-forecast">
+                    ${daily.map(day => {
+                        const icon = day.icon || getWeatherDescription(day.weatherCode)[1];
+                        const desc = day.desc || getWeatherDescription(day.weatherCode)[0];
+                        const outfit = day.outfit || getOutfitSuggestion(day.maxTemp, day.minTemp, day.weatherCode, trip.location);
+                        return `<div class="daily-item">
+                            <span class="daily-date">${new Date(day.date).getMonth()+1}/${new Date(day.date).getDate()}</span>
+                            <span class="daily-icon">${icon}</span>
+                            <span class="daily-desc">${desc}</span>
+                            <span class="daily-temp">
+                                <span class="daily-high">${Math.round(day.maxTemp)}°</span>
+                                <span class="daily-low">${Math.round(day.minTemp)}°</span>
+                            </span>
+                            <span class="daily-outfit" title="著裝建議">👗 ${outfit}</span>
+                        </div>`;
+                    }).join('')}
+                </div>
+                ${result.isClimate ? '<div class="badge-note">📘 部分或全部日期為歷史氣候參考</div>' : ''}
+                ${result.error ? `<div class="badge-note" style="background:#ffd6d6;">⚠️ ${result.message}</div>` : ''}
+            </div>`;
+    }
+
+    // ----- 增量更新表格（修復版） -----
+    function updateTableIncrementally(trips, results, loadedIndex) {
+        const trip = trips[loadedIndex];
+        const result = results[loadedIndex];
+        
+        if (!result) return;
+        
+        const tbody = document.getElementById('tableTbody');
+        if (!tbody) return;
+        
+        const row = document.getElementById(`table-row-${loadedIndex}`);
+        if (!row) return;
+        
+        row.classList.remove('loading-row');
+        const daily = result.daily || [];
+        const avgHigh = daily.length ? (daily.reduce((s,d)=>s+parseFloat(d.maxTemp),0)/daily.length).toFixed(1) : '--';
+        const avgLow = daily.length ? (daily.reduce((s,d)=>s+parseFloat(d.minTemp),0)/daily.length).toFixed(1) : '--';
+        
+        // 取得當前所有日期
+        const dateColumns = Array.from(allDatesSet).sort();
+        const dailyMap = new Map();
+        daily.forEach(d => dailyMap.set(d.date, d));
+        
+        // 更新表頭（移除佔位符，建立日期欄）
+        updateTableHeader(dateColumns);
+        
+        // 清空該行，只保留第一個 td（地點）
+        const tdLocation = row.querySelector('td:first-child');
+        row.innerHTML = '';
+        tdLocation.innerHTML = `
+            <div class="location-info">
+                <span class="location-name">${escapeHtml(trip.location)}</span>
+                <span class="trip-meta">📅 ${trip.startDate} ~ ${trip.endDate}</span>
+                <span class="avg-temp">🌡️ ${avgHigh}° / ${avgLow}°</span>
+            </div>
+        `;
+        row.appendChild(tdLocation);
+        
+        // 為每個日期建立 td
+        dateColumns.forEach(dateStr => {
+            const td = document.createElement('td');
+            const dayData = dailyMap.get(dateStr);
+            
+            if (!dayData) {
+                td.textContent = '—';
+                td.style.color = '#999';
+            } else {
+                const icon = dayData.icon || getWeatherDescription(dayData.weatherCode)[1];
+                const desc = dayData.desc || getWeatherDescription(dayData.weatherCode)[0];
+                const isMock = dayData.isMock || result.isClimate;
+                const outfit = dayData.outfit || getOutfitSuggestion(dayData.maxTemp, dayData.minTemp, dayData.weatherCode, trip.location);
+                
+                const cellDiv = document.createElement('div');
+                cellDiv.className = 'cell-content';
+                cellDiv.innerHTML = `
+                    <span class="cell-icon">${icon}</span>
+                    <span class="cell-temp">
+                        <span class="high">${Math.round(dayData.maxTemp)}°</span>
+                        <span class="low">${Math.round(dayData.minTemp)}°</span>
+                    </span>
+                    <span class="cell-desc">${desc}</span>
+                    <span class="cell-outfit" title="著裝建議">👗 ${outfit}</span>
+                    ${isMock ? '<span class="mock-badge">📘 參考</span>' : ''}
+                `;
+                td.appendChild(cellDiv);
+                if (result.error) {
+                    td.style.background = '#ffe0e0';
+                    td.title = result.message;
+                }
+            }
+            row.appendChild(td);
+        });
+        
+        // 同步所有已載入行的欄數
+        syncAllRowsColumns(dateColumns);
+    }
+
+    // ----- 更新表格表頭 -----
+    function updateTableHeader(dateColumns) {
+        const headerRow = document.getElementById('tableHeaderRow');
+        if (!headerRow) return;
+        
+        // 移除佔位符
+        const placeholderTh = document.getElementById('placeholderTh');
+        if (placeholderTh) {
+            placeholderTh.remove();
+        }
+        
+        // 保留第一個 th（地點）
+        while (headerRow.children.length > 1) {
+            headerRow.removeChild(headerRow.lastChild);
+        }
+        
+        // 重建日期欄位
+        dateColumns.forEach(dateStr => {
+            const th = document.createElement('th');
+            const d = new Date(dateStr);
+            th.textContent = `${d.getMonth()+1}/${d.getDate()}`;
+            headerRow.appendChild(th);
+        });
+    }
+
+    // ----- 同步所有行的欄數 -----
+    function syncAllRowsColumns(dateColumns) {
+        const tbody = document.getElementById('tableTbody');
+        if (!tbody) return;
+        
+        const rows = tbody.querySelectorAll('tr');
+        const expectedCols = 1 + dateColumns.length;
+        
+        rows.forEach(row => {
+            // 只處理已載入的行（非 loading-row）
+            if (row.classList.contains('loading-row')) return;
+            
+            // 確保每行有 location + dateColumns 個 td
+            const currentCols = row.children.length;
+            
+            if (currentCols < expectedCols) {
+                // 需要補充空的 td
+                for (let i = currentCols; i < expectedCols; i++) {
+                    const td = document.createElement('td');
+                    td.textContent = '—';
+                    td.style.color = '#999';
+                    row.appendChild(td);
+                }
+            }
+        });
+    }
+
+    // ----- 完整重建視圖（用於模式切換或最終一致性保證） -----
+    function buildFullView(trips, results) {
+        const mode = getRenderMode();
+        if (mode === 'card') {
+            renderWeatherCards(trips, results);
+        } else {
+            renderWeatherTable(trips, results);
+        }
+        currentRenderMode = mode;
     }
 
     // ----- 著裝建議函數 -----
     function getOutfitSuggestion(highTemp, lowTemp, weatherCode, location) {
-        const avgTemp = (parseFloat(highTemp) + parseFloat(lowTemp)) / 2;
         const minTemp = parseFloat(lowTemp);
         const maxTemp = parseFloat(highTemp);
         
         const isRainy = [51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99].includes(weatherCode);
         const isSnowy = [71, 73, 75].includes(weatherCode);
         
-        const isNortheast = location && (location.includes('瀋陽') || location.includes('沈阳') || 
-                                         location.includes('哈爾濱') || location.includes('哈尔滨'));
         const isSouth = location && (location.includes('上海') || location.includes('寧波') || 
                                      location.includes('宁波'));
         
@@ -601,72 +1014,45 @@
     }
 
     // ----- 表格水平滾動功能 -----
-    function setupTableScroll(wrapperElement) {
-        const scrollContainer = wrapperElement.querySelector('.table-wrapper');
-        const leftArrow = wrapperElement.querySelector('.scroll-arrow-left');
-        const rightArrow = wrapperElement.querySelector('.scroll-arrow-right');
+    function setupTableScroll(scrollContainerWrapper) {
+        const scrollContainer = scrollContainerWrapper.querySelector('.table-wrapper');
+        const leftArrow = scrollContainerWrapper.querySelector('.scroll-arrow-left');
+        const rightArrow = scrollContainerWrapper.querySelector('.scroll-arrow-right');
         
         if (!scrollContainer || !leftArrow || !rightArrow) return;
         
-        // 滾動距離：一次滾動約一個日期欄位寬度 (約120px)
         const scrollAmount = 250;
         
-        // 更新箭頭狀態
         function updateArrowStates() {
             const scrollLeft = scrollContainer.scrollLeft;
             const maxScrollLeft = scrollContainer.scrollWidth - scrollContainer.clientWidth;
             
-            // 左箭頭：如果已經在最左邊，禁用
-            if (scrollLeft <= 0) {
-                leftArrow.disabled = true;
-                leftArrow.style.opacity = '0.3';
-            } else {
-                leftArrow.disabled = false;
-                leftArrow.style.opacity = '1';
-            }
+            leftArrow.disabled = scrollLeft <= 0;
+            leftArrow.style.opacity = scrollLeft <= 0 ? '0.3' : '1';
             
-            // 右箭頭：如果已經在最右邊，禁用
-            if (scrollLeft >= maxScrollLeft - 1) {
-                rightArrow.disabled = true;
-                rightArrow.style.opacity = '0.3';
-            } else {
-                rightArrow.disabled = false;
-                rightArrow.style.opacity = '1';
-            }
+            rightArrow.disabled = scrollLeft >= maxScrollLeft - 1;
+            rightArrow.style.opacity = scrollLeft >= maxScrollLeft - 1 ? '0.3' : '1';
         }
         
-        // 點擊左箭頭
         leftArrow.addEventListener('click', () => {
-            scrollContainer.scrollBy({
-                left: -scrollAmount,
-                behavior: 'smooth'
-            });
+            scrollContainer.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
         });
         
-        // 點擊右箭頭
         rightArrow.addEventListener('click', () => {
-            scrollContainer.scrollBy({
-                left: scrollAmount,
-                behavior: 'smooth'
-            });
+            scrollContainer.scrollBy({ left: scrollAmount, behavior: 'smooth' });
         });
         
-        // 監聽滾動事件，更新箭頭狀態
         scrollContainer.addEventListener('scroll', updateArrowStates);
         
-        // 監聽滑鼠滾輪水平滾動
         scrollContainer.addEventListener('wheel', (e) => {
             if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-                // 水平滾動時阻止頁面垂直滾動
                 e.preventDefault();
                 scrollContainer.scrollLeft += e.deltaX;
             }
         }, { passive: false });
         
-        // 初始化箭頭狀態
         updateArrowStates();
         
-        // 使用 MutationObserver 監測表格內容變化並更新箭頭
         const observer = new MutationObserver(updateArrowStates);
         observer.observe(scrollContainer, { childList: true, subtree: true, characterData: true });
     }
@@ -786,7 +1172,7 @@
         return {max:24,min:14,cond:"氣候宜人"};
     }
 
-    // ----- 卡片渲染 (手機版) -----
+    // ----- 卡片渲染 (用於模式切換時的完整重建) -----
     function renderWeatherCards(trips, results) {
         const grid = document.getElementById('weatherGrid');
         grid.className = 'weather-grid';
@@ -794,6 +1180,7 @@
         
         trips.forEach((trip, i) => {
             const result = results[i];
+            if (!result) return;
             const daily = result.daily || [];
             const avgHigh = daily.length ? (daily.reduce((s,d)=>s+parseFloat(d.maxTemp),0)/daily.length).toFixed(1) : '--';
             const avgLow = daily.length ? (daily.reduce((s,d)=>s+parseFloat(d.minTemp),0)/daily.length).toFixed(1) : '--';
@@ -834,7 +1221,7 @@
         });
     }
 
-    // ----- 表格渲染 (桌面版) -----
+    // ----- 表格渲染 (用於模式切換時的完整重建) -----
     function renderWeatherTable(trips, results) {
         const grid = document.getElementById('weatherGrid');
         grid.className = '';
@@ -842,41 +1229,26 @@
         
         if (!trips.length) return;
 
-        // 收集所有日期
-        const allDatesSet = new Set();
-        const tripDailyMap = new Map();
-        
-        trips.forEach((trip, idx) => {
-            const daily = results[idx].daily || [];
-            tripDailyMap.set(idx, daily);
-            daily.forEach(d => allDatesSet.add(d.date));
-        });
-        
         const dateColumns = Array.from(allDatesSet).sort();
         if (dateColumns.length === 0) {
             grid.innerHTML = '<div class="empty-state">無法取得任何日期資料</div>';
             return;
         }
 
-        // 建立滾動容器結構：左箭頭 + 表格容器 + 右箭頭
         const scrollContainerWrapper = document.createElement('div');
         scrollContainerWrapper.className = 'table-scroll-container';
         
-        // 左箭頭按鈕
         const leftArrow = document.createElement('button');
         leftArrow.className = 'scroll-arrow scroll-arrow-left';
         leftArrow.innerHTML = '◀';
         leftArrow.title = '向左滾動';
-        leftArrow.setAttribute('aria-label', '向左滾動');
         
-        // 表格容器
         const wrapper = document.createElement('div');
         wrapper.className = 'table-wrapper';
         
         const table = document.createElement('table');
         table.className = 'weather-table';
         
-        // thead
         const thead = document.createElement('thead');
         const headerRow = document.createElement('tr');
         const thLocation = document.createElement('th');
@@ -891,11 +1263,11 @@
         thead.appendChild(headerRow);
         table.appendChild(thead);
         
-        // tbody
         const tbody = document.createElement('tbody');
         trips.forEach((trip, tripIdx) => {
             const result = results[tripIdx];
-            const daily = tripDailyMap.get(tripIdx) || [];
+            if (!result) return;
+            const daily = result.daily || [];
             const dailyMap = new Map();
             daily.forEach(d => dailyMap.set(d.date, d));
             
@@ -952,22 +1324,18 @@
         table.appendChild(tbody);
         wrapper.appendChild(table);
         
-        // 右箭頭按鈕
         const rightArrow = document.createElement('button');
         rightArrow.className = 'scroll-arrow scroll-arrow-right';
         rightArrow.innerHTML = '▶';
         rightArrow.title = '向右滾動';
-        rightArrow.setAttribute('aria-label', '向右滾動');
         
-        // 組裝
         scrollContainerWrapper.appendChild(leftArrow);
         scrollContainerWrapper.appendChild(wrapper);
         scrollContainerWrapper.appendChild(rightArrow);
         
-        // 先加入 grid
         grid.appendChild(scrollContainerWrapper);
         
-        const hasClimateNote = results.some(r => r.isClimate);
+        const hasClimateNote = results.some(r => r && r.isClimate);
         if (hasClimateNote) {
             const note = document.createElement('div');
             note.className = 'info-note';
@@ -975,7 +1343,6 @@
             grid.appendChild(note);
         }
         
-        // 設置箭頭滾動功能
         setupTableScroll(scrollContainerWrapper);
     }
 
