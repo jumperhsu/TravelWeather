@@ -167,6 +167,12 @@
             color: #4a627a;
             font-size: 0.9rem;
         }
+        /* 新增：地點明細顯示樣式 */
+        .trip-detail {
+            color: #5b7aa2;
+            font-size: 0.85rem;
+            margin-top: 2px;
+        }
         .empty-state {
             text-align: center;
             padding: 2rem;
@@ -296,7 +302,12 @@
         <h3 id="modalTripTitle">新增行程</h3>
         <div style="margin: 12px 0;">
             <label>地點名稱：</label>
-            <input type="text" id="tripLocation" placeholder="例：上海七寶古鎮" style="width:100%;">
+            <input type="text" id="tripLocation" placeholder="例：台北市松山區" style="width:100%;">
+        </div>
+        <!-- 新增：地點明細（位於地點名稱與起始日期之間） -->
+        <div style="margin: 12px 0;">
+            <label>地點明細：</label>
+            <input type="text" id="tripLocationDetail" placeholder="例：松山機場（選填）" style="width:100%;">
         </div>
         <div style="margin: 12px 0;">
             <label>起始日期：</label>
@@ -341,10 +352,12 @@
 
     function escapeHtml(str) {
         if (!str) return '';
-        return str.replace(/[&<>]/g, function(m) {
+        return String(str).replace(/[&<>"']/g, function(m) {
             if (m === '&') return '&amp;';
             if (m === '<') return '&lt;';
             if (m === '>') return '&gt;';
+            if (m === '"') return '&quot;';
+            if (m === "'") return '&#39;';
             return m;
         });
     }
@@ -553,13 +566,14 @@
                 <div class="trip-info">
                     <div class="trip-dates">📅 ${trip.startDate} 至 ${trip.endDate}</div>
                     <div class="trip-location">📍 ${escapeHtml(trip.location)}</div>
+                    ${trip.locationDetail ? `<div class="trip-detail">🔖 ${escapeHtml(trip.locationDetail)}</div>` : ''}
                 </div>
                 <div class="trip-actions-group">
                     <div class="move-group">
                         <button class="btn btn-icon move-up" data-id="${trip.id}" ${isFirstInGroup ? 'disabled style="opacity:0.5;"' : ''} title="向上移動（同日起始）">⬆️</button>
                         <button class="btn btn-icon move-down" data-id="${trip.id}" ${isLastInGroup ? 'disabled style="opacity:0.5;"' : ''} title="向下移動（同日起始）">⬇️</button>
                     </div>
-                    <button class="btn btn-outline edit-trip" data-id="${trip.id}" data-location="${escapeHtml(trip.location)}" data-start="${trip.startDate}" data-end="${trip.endDate}" title="編輯行程">✏️</button>
+                    <button class="btn btn-outline edit-trip" data-id="${trip.id}" title="編輯行程">✏️</button>
                     <button class="btn btn-danger delete-trip" data-id="${trip.id}" title="刪除行程">🗑️</button>
                 </div>
             </div>
@@ -569,10 +583,13 @@
     }
 
     function bindTripEvents() {
+        const findTrip = (id) => currentProject?.trips.find(t => t.id === id);
+
         document.querySelectorAll('.edit-trip').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                openTripModal(btn.dataset.id, btn.dataset.location, btn.dataset.start, btn.dataset.end);
+                const trip = findTrip(btn.dataset.id);
+                if (trip) openTripModal(trip);
             });
         });
         document.querySelectorAll('.delete-trip').forEach(btn => {
@@ -654,12 +671,14 @@
         document.getElementById('projectModal').classList.remove('hidden');
     }
 
-    function openTripModal(id = null, location = '', startDate = '', endDate = '') {
-        editingTripId = id;
-        document.getElementById('tripLocation').value = location;
-        document.getElementById('tripStartDate').value = startDate;
-        document.getElementById('tripEndDate').value = endDate;
-        document.getElementById('modalTripTitle').innerText = id ? '編輯行程' : '新增行程';
+    // 改為傳入整個 trip 物件（或 null 表示新增）
+    function openTripModal(trip = null) {
+        editingTripId = trip ? trip.id : null;
+        document.getElementById('tripLocation').value = trip ? (trip.location || '') : '';
+        document.getElementById('tripLocationDetail').value = trip ? (trip.locationDetail || '') : '';
+        document.getElementById('tripStartDate').value = trip ? (trip.startDate || '') : '';
+        document.getElementById('tripEndDate').value = trip ? (trip.endDate || '') : '';
+        document.getElementById('modalTripTitle').innerText = trip ? '編輯行程' : '新增行程';
         document.getElementById('tripModal').classList.remove('hidden');
     }
 
@@ -691,6 +710,7 @@
     async function handleSaveTrip() {
         if (!currentProject) return alert('請先選擇一個專案');
         const location = document.getElementById('tripLocation').value.trim();
+        const locationDetail = document.getElementById('tripLocationDetail').value.trim();
         const startDate = document.getElementById('tripStartDate').value;
         const endDate = document.getElementById('tripEndDate').value;
         if (!location || !startDate || !endDate) return alert('請完整填寫地點和日期');
@@ -704,14 +724,14 @@
                 const oldTrip = newTrips[index];
                 if (oldTrip.startDate !== startDate) {
                     const newOrder = getNextOrderForDate(newTrips, startDate);
-                    newTrips[index] = { ...oldTrip, location, startDate, endDate, order: newOrder };
+                    newTrips[index] = { ...oldTrip, location, locationDetail, startDate, endDate, order: newOrder };
                 } else {
-                    newTrips[index] = { ...oldTrip, location, startDate, endDate };
+                    newTrips[index] = { ...oldTrip, location, locationDetail, startDate, endDate };
                 }
             }
         } else {
             const newOrder = getNextOrderForDate(newTrips, startDate);
-            newTrips.push({ id: generateId(), location, startDate, endDate, order: newOrder });
+            newTrips.push({ id: generateId(), location, locationDetail, startDate, endDate, order: newOrder });
         }
         
         try {
