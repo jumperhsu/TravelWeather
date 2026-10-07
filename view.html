@@ -99,7 +99,6 @@
             background: linear-gradient(160deg, #ffffff 0%, #f4f8ff 100%);
             border-radius: 28px;
             overflow: hidden;
-            /* 立體多層陰影：底部主陰影 + 左右柔和擴散 + 頂部高光 */
             box-shadow:
                 0 10px 18px -6px rgba(31, 59, 100, 0.28),
                 0 22px 40px -12px rgba(31, 59, 100, 0.32),
@@ -109,7 +108,6 @@
             animation: fadeInUp 0.35s ease;
             transition: transform 0.25s ease, box-shadow 0.25s ease;
         }
-        /* 卡片底部陰影強化層（營造浮起感） */
         .date-group::after {
             content: '';
             position: absolute;
@@ -130,6 +128,15 @@
                 0 10px 20px -10px rgba(31, 59, 100, 0.28),
                 inset 0 1px 0 rgba(255, 255, 255, 0.9);
         }
+        /* 今日卡片高亮邊框 */
+        .date-group.today-highlight {
+            border: 2px solid #4a8bc2;
+            box-shadow:
+                0 10px 18px -6px rgba(42, 85, 145, 0.35),
+                0 22px 40px -12px rgba(42, 85, 145, 0.42),
+                0 4px 8px -2px rgba(42, 85, 145, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        }
         .date-header {
             background: linear-gradient(135deg, #1e3c72 0%, #3a7ca5 100%);
             color: white;
@@ -144,7 +151,9 @@
             box-shadow: 0 3px 8px -2px rgba(30, 60, 114, 0.45);
             position: relative;
         }
-        /* 標題下方的高光線，增加立體層次 */
+        .date-group.today-highlight .date-header {
+            background: linear-gradient(135deg, #2a5591 0%, #4a8bc2 100%);
+        }
         .date-header::after {
             content: '';
             position: absolute;
@@ -162,6 +171,17 @@
             padding: 2px 10px;
             border-radius: 20px;
             backdrop-filter: blur(2px);
+        }
+        .today-badge {
+            font-size: 0.68rem;
+            background: #ffd54a;
+            color: #6a4b00;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 700;
+            margin-left: 6px;
+            vertical-align: middle;
+            box-shadow: 0 1px 3px rgba(255, 213, 74, 0.5);
         }
         .date-items {
             padding: 4px 10px 8px;
@@ -568,6 +588,11 @@
     let currentRenderMode = 'mobile-date';
     let allDatesSet = new Set();
 
+    // 自動定位狀態：只在首次完整渲染後執行一次，避免 resize 反覆觸發
+    let hasAutoScrolled = false;
+    // 標記首次完整載入完成
+    let isFirstFullRender = true;
+
     const aboutModal = document.getElementById('aboutModal');
     document.getElementById('aboutBtn').addEventListener('click', () => aboutModal.classList.remove('hidden'));
     document.getElementById('closeAboutModal').addEventListener('click', () => aboutModal.classList.add('hidden'));
@@ -594,7 +619,8 @@
         resizeTimer = setTimeout(() => {
             const newMode = getRenderMode();
             if (newMode !== currentRenderMode && currentTrips.length) {
-                buildFullView(currentTrips, currentResults);
+                // resize 切換模式時不觸發自動滾動，避免打斷使用者
+                buildFullView(currentTrips, currentResults, { skipAutoScroll: true });
             }
         }, 150);
     });
@@ -645,9 +671,11 @@
                 const newPercent = Math.round(((i + 1) / sortedTrips.length) * 100);
                 progressFill.style.width = newPercent + '%';
                 
+                // 增量更新時不觸發自動滾動（避免畫面亂跳）
                 updateViewIncrementally(sortedTrips, currentResults, i);
             }
             
+            // 首次完整渲染，允許自動滾動
             buildFullView(sortedTrips, currentResults);
             
             progressText.textContent = `✅ 全部載入完成！共 ${sortedTrips.length} 個行程`;
@@ -794,15 +822,19 @@
         
         const weekdayNames = ['日', '一', '二', '三', '四', '五', '六'];
         
+        // 取得今日日期字串（用於高亮）
+        const todayStr = getTodayString();
+        
         grid.innerHTML = sortedDates.map(dateStr => {
             const items = dateMap.get(dateStr);
             const d = new Date(dateStr + 'T00:00:00');
             const dateLabel = `${d.getMonth() + 1}月${d.getDate()}日 (週${weekdayNames[d.getDay()]})`;
+            const isToday = dateStr === todayStr;
             
             return `
-                <div class="date-group">
+                <div class="date-group${isToday ? ' today-highlight' : ''}" data-date="${dateStr}">
                     <div class="date-header">
-                        <span>📅 ${dateLabel}</span>
+                        <span>📅 ${dateLabel}${isToday ? '<span class="today-badge">今天</span>' : ''}</span>
                         <span class="day-count">${items.length} 個地點</span>
                     </div>
                     <div class="date-items">
@@ -953,14 +985,84 @@
         });
     }
 
-    function buildFullView(trips, results) {
+    /**
+     * 完整重建視圖
+     * @param {boolean} opts.skipAutoScroll - 若為 true，不觸發自動定位
+     */
+    function buildFullView(trips, results, opts = {}) {
         const mode = getRenderMode();
         if (mode === 'mobile-date') {
             renderMobileByDate(trips, results);
+            // 只有在手機模式且未滾動過、且非 skip 時，才觸發自動定位
+            if (!opts.skipAutoScroll && !hasAutoScrolled) {
+                autoScrollToToday();
+            }
         } else {
             renderWeatherTable(trips, results);
         }
         currentRenderMode = mode;
+    }
+
+    /**
+     * 取得今日日期字串（YYYY-MM-DD），以本地時區為準
+     */
+    function getTodayString() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    /**
+     * 若今日落在任一行程的起訖日期之間，自動滾動到對應日期卡片
+     * 只在手機模式且尚未滾動過時執行
+     */
+    function autoScrollToToday() {
+        if (hasAutoScrolled) return;
+        if (getRenderMode() !== 'mobile-date') return;
+        if (!currentTrips || currentTrips.length === 0) return;
+        
+        const todayStr = getTodayString();
+        
+        // 判斷今天是否落在任一行程的起訖日期之間
+        const inRange = currentTrips.some(trip => {
+            if (!trip.startDate || !trip.endDate) return false;
+            return todayStr >= trip.startDate && todayStr <= trip.endDate;
+        });
+        
+        if (!inRange) {
+            // 今天不在任何行程範圍內，不滾動
+            hasAutoScrolled = true;
+            return;
+        }
+        
+        // 找到對應的日期卡片
+        const targetGroup = document.querySelector(`.date-group[data-date="${todayStr}"]`);
+        if (!targetGroup) {
+            // 找不到今天的卡片（例如資料未載入），不滾動
+            hasAutoScrolled = true;
+            return;
+        }
+        
+        // 延遲一點執行，確保 DOM 已完成 layout
+        setTimeout(() => {
+            try {
+                const rect = targetGroup.getBoundingClientRect();
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const targetY = Math.max(0, rect.top + scrollTop - 16);
+                
+                window.scrollTo({
+                    top: targetY,
+                    behavior: 'smooth'
+                });
+            } catch (e) {
+                // 退而求其次，使用 scrollIntoView
+                targetGroup.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 300);
+        
+        hasAutoScrolled = true;
     }
 
     function getOutfitSuggestion(highTemp, lowTemp, weatherCode, location) {
