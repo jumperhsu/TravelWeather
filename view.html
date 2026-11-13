@@ -456,6 +456,22 @@
             text-align: left;
         }
         .modal-info p { margin: 8px 0; font-size: 1rem; }
+        .modal-info .source-list {
+            margin: 6px 0 0 20px;
+            padding: 0;
+            font-size: 0.9rem;
+            color: #2c3e66;
+        }
+        .modal-info .source-list li {
+            margin: 4px 0;
+        }
+        .modal-info a {
+            color: #2a5591;
+            text-decoration: none;
+        }
+        .modal-info a:hover {
+            text-decoration: underline;
+        }
         .logo-row { display: flex; justify-content: center; gap: 30px; margin: 20px 0 10px; }
         .logo-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
         .logo-icon {
@@ -480,11 +496,25 @@
         }
         .hidden { display: none; }
 
-        /* 手機隱藏標題按鈕 */
+        /* 手機版：隱藏標題/專案徽章，關於按鈕浮動右上角 */
         @media (max-width: 600px) {
-            .header h1, .project-badge, .about-btn { display: none !important; }
+            .header h1, .project-badge { display: none !important; }
             .header { margin-bottom: 16px; }
             body { padding-top: 12px; padding-left: 14px; padding-right: 14px; }
+
+            .about-btn {
+                display: flex !important;
+                position: fixed;
+                top: 12px;
+                right: 12px;
+                z-index: 900;
+                padding: 10px 16px;
+                font-size: 0.9rem;
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(6px);
+                box-shadow: 0 4px 14px rgba(30, 60, 114, 0.22);
+                border: 1px solid rgba(205, 217, 233, 0.8);
+            }
         }
 
         /* 平板以下也隱藏箭頭，保留原生滾動 */
@@ -527,10 +557,15 @@
     <div class="modal-card">
         <h3>📋 關於本服務</h3>
         <div class="modal-info">
-            <p><strong>版本：</strong>20261007</p>
+            <p><strong>版本：</strong><span id="versionText"></span></p>
             <p><strong>構想：</strong>Jumper.hsu@gmail.com</p>
             <p><strong>設計：</strong>DeepSeek</p>
             <p><strong>資料庫：</strong>Firebase</p>
+            <p><strong>天氣預報參考來源：</strong></p>
+            <ul class="source-list">
+                <li><a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>（免費天氣預報 API）</li>
+                <li><a href="https://nominatim.openstreetmap.org/" target="_blank" rel="noopener">Nominatim / OpenStreetMap</a>（地理編碼查詢）</li>
+            </ul>
         </div>
         <div class="logo-row">
             <div class="logo-item">
@@ -592,6 +627,16 @@
     let hasAutoScrolled = false;
     // 標記首次完整載入完成
     let isFirstFullRender = true;
+
+    // 版號固定為今天日期（YYYYMMDD），頁面載入當下即固定
+    function setVersionText() {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        document.getElementById('versionText').textContent = `${yyyy}${mm}${dd}`;
+    }
+    setVersionText();
 
     const aboutModal = document.getElementById('aboutModal');
     document.getElementById('aboutBtn').addEventListener('click', () => aboutModal.classList.remove('hidden'));
